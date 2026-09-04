@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>우리반 마켓</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+
+:root{
+  --bg:#FBF3E1;
+  --card:#FFFFFF;
+  --ink:#3A2E22;
+  --ink-soft:#9C8B70;
+  --line:#F0E4C9;
+  --mint:#4CAF8E; --mint-dark:#337A61; --mint-pale:#DFF3EA;
+  --blue:#4C8DFF; --blue-dark:#2F66C9; --blue-pale:#E6EEFF;
+  --coin:#F5B942; --coin-dark:#B9791A; --coin-pale:#FDF1D3;
+  --pink:#F49AC1; --pink-dark:#D9709E; --pink-pale:#FDEAF2;
+  --purple:#B39DDB; --purple-dark:#7E5FC4; --purple-pale:#F1ECFC;
+  --orange:#FFB25B; --orange-dark:#D98A2E; --orange-pale:#FFF1DE;
+  --coral:#FF6B6B; --coral-dark:#D94F4F;
+  --chalk:#2F5B45;
+  --radius:20px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{ background:var(--bg); color:var(--ink); font-family:'Noto Sans KR', sans-serif; min-height:100vh; -webkit-font-smoothing:antialiased; }
+h1,h2,h3,.display{ font-family:'Gaegu','Noto Sans KR',sans-serif; font-weight:700; }
+#app{ max-width:1180px; margin:0 auto; padding:20px 16px 60px; }
+.topbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+.brand{ display:flex; align-items:center; gap:10px; font-size:24px; }
+.brand .sub{ font-family:'Noto Sans KR',sans-serif; font-size:13px; color:var(--ink-soft); font-weight:500; }
+button{ font-family:inherit; cursor:pointer; border:none; border-radius:999px; padding:10px 18px; font-size:15px; font-weight:700; transition:transform .08s ease, box-shadow .15s ease, opacity .15s ease; }
+button:active{transform:scale(0.97);}
+button:disabled{opacity:.45; cursor:not-allowed; transform:none;}
+.btn-primary{background:var(--mint); color:#fff; box-shadow:0 3px 0 var(--mint-dark);}
+.btn-primary:hover:not(:disabled){filter:brightness(1.04);}
+.btn-blue{background:var(--blue); color:#fff; box-shadow:0 3px 0 var(--blue-dark);}
+.btn-purple{background:var(--purple); color:#fff; box-shadow:0 3px 0 var(--purple-dark);}
+.btn-coral{background:var(--coral); color:#fff; box-shadow:0 3px 0 var(--coral-dark);}
+.btn-ghost{background:transparent; color:var(--ink-soft); box-shadow:none; border:2px solid var(--line); border-radius:12px;}
+.btn-small{padding:7px 14px; font-size:13px;}
+.btn-block{width:100%; text-align:center;}
+.btn-square{border-radius:12px;}
+
+.card{ background:var(--card); border-radius:var(--radius); padding:20px; box-shadow:0 3px 12px rgba(58,46,34,0.07); border:1px solid var(--line); margin-bottom:16px; }
+
+/* ---- role select (home) ---- */
+.lang-switch{ display:flex; justify-content:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
+.lang-btn{ background:#fff; border:2px solid var(--line); color:var(--ink-soft); padding:7px 14px; border-radius:999px; font-size:13px; font-weight:700; }
+.lang-btn.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+
+.ribbon-wrap{text-align:center; margin-top:10px;}
+.ribbon{ display:inline-block; background:var(--mint); color:#fff; font-weight:700; font-size:13px; padding:6px 18px; border-radius:999px; margin-bottom:10px; }
+.market-title{ text-align:center; font-size:40px; margin:2px 0 6px; letter-spacing:1px; }
+.market-title .c1{color:var(--coin-dark);} .market-title .c2{color:var(--mint-dark);} .market-title .c3{color:var(--blue-dark);} .market-title .c4{color:var(--pink-dark);}
+@media (max-width:480px){ .market-title{font-size:30px;} }
+.market-sub{text-align:center; color:var(--ink-soft); font-size:14px; margin-bottom:30px;}
+.role-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; max-width:640px; margin:0 auto; }
+@media (max-width:560px){ .role-grid{grid-template-columns:1fr;} }
+.role-card{ background:#fff; border-radius:24px; padding:26px 22px; text-align:center; cursor:pointer; transition:transform .12s ease; border:2px solid var(--line); }
+.role-card:hover{transform:translateY(-4px);}
+.role-card.teacher{border-color:var(--mint);}
+.role-card.student{border-color:var(--blue);}
+.role-avatar{ width:96px; height:96px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:48px; margin:0 auto 14px; }
+.role-card.teacher .role-avatar{background:var(--mint-pale);}
+.role-card.student .role-avatar{background:var(--blue-pale);}
+.role-card .rtitle{font-size:20px; font-weight:900; margin-bottom:6px;}
+.role-card.teacher .rtitle{color:var(--mint-dark);}
+.role-card.student .rtitle{color:var(--blue-dark);}
+.role-card .rdesc{font-size:13px; color:var(--ink-soft); margin-bottom:16px;}
+.role-card button{width:100%;}
+.footer-tag{ text-align:center; margin-top:24px; }
+.footer-tag span{ background:var(--card); border:1px solid var(--line); padding:8px 18px; border-radius:999px; font-size:13px; color:var(--ink-soft); }
+
+.field{margin-bottom:12px;}
+.field label{display:block; font-size:13px; font-weight:700; color:var(--ink-soft); margin-bottom:5px;}
+input[type=text],input[type=number],input[type=password],textarea{
+  width:100%; padding:11px 13px; border-radius:12px; border:2px solid var(--line);
+  font-size:15px; font-family:inherit; background:#fffdf8;
+}
+textarea{resize:vertical; min-height:70px;}
+input:focus,textarea:focus{outline:none; border-color:var(--mint);}
+
+.err{color:var(--coral-dark); font-size:13px; font-weight:700; margin-top:6px;}
+.hint{color:var(--ink-soft); font-size:12.5px; margin-top:4px;}
+
+.tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;}
+.tab{ padding:8px 14px; border-radius:999px; font-size:14px; font-weight:700; background:transparent; color:var(--ink-soft); border:2px solid var(--line); }
+.tab.active{background:var(--mint); color:#fff; border-color:var(--mint);}
+
+.student-row{ border:1px solid var(--line); border-radius:16px; margin-bottom:10px; padding:12px; }
+.student-row .name-line{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:8px;}
+.student-row .name{font-weight:700; font-size:16px;}
+.coin-pill{ display:inline-flex; align-items:center; gap:4px; background:var(--coin-pale); color:var(--coin-dark); padding:4px 10px; border-radius:999px; font-weight:900; font-size:13.5px; }
+.mini-form{display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:6px;}
+.mini-form .mlabel{font-size:12px; color:var(--ink-soft); font-weight:700; margin-right:2px;}
+.mini-form input[type=number]{width:80px;}
+.mini-form input[type=text],.mini-form input[type=password]{width:130px;}
+
+.shop-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px;}
+.shop-item{ border:1px solid var(--line); border-radius:18px; padding:14px; text-align:center; background:#fffdf8; }
+.shop-item .emoji{font-size:40px;}
+.shop-item .name{font-weight:700; margin:6px 0 2px;}
+.shop-item .price{color:var(--coin-dark); font-weight:900; margin-bottom:4px;}
+.shop-item .stock{ display:inline-block; font-size:11.5px; color:var(--mint-dark); background:var(--mint-pale); padding:2px 9px; border-radius:999px; margin-bottom:8px; }
+.shop-item .stock.out{color:var(--coral-dark); background:#FDE4E4;}
+
+/* ---- chalkboard hero ---- */
+.chalk-hero{ background:var(--chalk); border-radius:24px; padding:26px 22px; text-align:center; color:#fff; margin-bottom:16px; border:4px solid #24493A; position:relative; overflow:hidden; }
+.chalk-hero .htitle{ font-size:30px; margin:0 0 6px; }
+.chalk-hero .hsub{font-size:13px; opacity:.85;}
+.chalk-hero .hbal{ display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.12); padding:8px 18px; border-radius:999px; margin-top:12px; font-family:'Gaegu'; font-size:22px; }
+.chalk-hero .hbal.bump{animation:bump .35s ease;}
+@keyframes bump{ 0%{transform:scale(1);} 35%{transform:scale(1.18) rotate(-3deg);} 70%{transform:scale(0.96) rotate(2deg);} 100%{transform:scale(1);} }
+
+.passbook{ background:linear-gradient(135deg, var(--mint), var(--mint-dark)); color:#fff; border-radius:22px; padding:26px 22px; margin-bottom:20px; border:3px dashed rgba(255,255,255,0.5); text-align:center; }
+.passbook .who{font-size:15px; opacity:.9; font-weight:700;}
+.passbook .balance{ font-family:'Gaegu'; font-size:42px; margin:6px 0; display:inline-block; }
+
+.log-item{ display:flex; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); font-size:13.5px; flex-wrap:wrap; }
+.log-item:last-child{border-bottom:none;}
+.log-amt.earn{color:var(--mint-dark); font-weight:900;}
+.log-amt.spend{color:var(--coral-dark); font-weight:900;}
+.log-amt.deduct{color:var(--coral-dark); font-weight:900;}
+.log-amt.save{color:var(--blue); font-weight:900;}
+.log-amt.unsave{color:var(--coin-dark); font-weight:900;}
+.muted{color:var(--ink-soft); font-size:12.5px;}
+.empty{ text-align:center; padding:30px 10px; color:var(--ink-soft); font-size:14px; }
+
+/* ---- student app shell ---- */
+.app-shell{ display:flex; gap:16px; align-items:flex-start; }
+.side-nav{ width:216px; flex-shrink:0; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 14px; position:sticky; top:16px; }
+.profile-box{ text-align:center; padding-bottom:16px; margin-bottom:14px; border-bottom:1px solid var(--line); }
+.avatar{ width:66px; height:66px; border-radius:50%; background:var(--blue-pale); display:flex; align-items:center; justify-content:center; font-size:34px; margin:0 auto 8px; cursor:pointer; border:3px solid var(--blue); }
+.profile-box .greet{font-size:12px; color:var(--ink-soft); font-weight:700;}
+.profile-box .pname{font-weight:900; font-size:17px; margin:2px 0 8px;}
+.nav-list{display:flex; flex-direction:column; gap:6px;}
+.nav-item{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:14px; font-weight:700; font-size:14px; color:var(--ink-soft); background:transparent; text-align:left; width:100%; border:none; }
+.nav-item .ic-circle{ width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+.nav-item.active{ background:var(--mint-pale); color:var(--mint-dark); }
+.nav-item[data-tab=home] .ic-circle{background:var(--mint-pale); color:var(--mint-dark);}
+.nav-item[data-tab=wallet] .ic-circle{background:var(--coin-pale); color:var(--coin-dark);}
+.nav-item[data-tab=market] .ic-circle{background:var(--orange-pale); color:var(--orange-dark);}
+.nav-item[data-tab=spending] .ic-circle{background:var(--purple-pale); color:var(--purple-dark);}
+.main-content{flex:1; min-width:0;}
+.side-right{ width:230px; flex-shrink:0; position:sticky; top:16px; }
+@media (max-width:900px){
+  .app-shell{flex-direction:column;}
+  .side-nav{width:100%; position:static;}
+  .nav-list{flex-direction:row; flex-wrap:wrap;}
+  .nav-item{width:auto;}
+  .side-right{width:100%; position:static;}
+}
+
+.stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px;}
+@media (max-width:700px){ .stat-grid{grid-template-columns:1fr 1fr;} }
+.stat-card{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px 10px; text-align:center; }
+.stat-card .sicon{ width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:21px; margin:0 auto 8px; }
+.stat-card.earn .sicon{background:var(--mint-pale); color:var(--mint-dark);}
+.stat-card.spend .sicon{background:var(--blue-pale); color:var(--blue-dark);}
+.stat-card.save .sicon{background:var(--purple-pale); color:var(--purple-dark);}
+.stat-card.total .sicon{background:var(--orange-pale); color:var(--orange-dark);}
+.stat-card .slabel{font-size:12px; color:var(--ink-soft); font-weight:700; margin-bottom:3px;}
+.stat-card .sval{font-family:'Gaegu'; font-size:24px;}
+
+.popular-list{display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:12px;}
+.popular-card{ border:1px solid var(--line); border-radius:16px; padding:12px; text-align:center; position:relative; background:#fffdf8; }
+.popular-card .rank{ position:absolute; top:8px; left:8px; width:22px; height:22px; border-radius:50%; background:var(--coin); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:12px; }
+.popular-card .pemoji{font-size:34px; margin-top:6px;}
+.popular-card .pname{font-weight:700; font-size:13.5px; margin:4px 0 2px;}
+.popular-card .pcount{font-size:11.5px; color:var(--ink-soft);}
+
+.mini-panel{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px; margin-bottom:14px; text-align:center; }
+.mini-panel .mtop{display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:4px;}
+.mini-panel .micon{width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px;}
+.mini-panel.coin .micon{background:var(--coin-pale); color:var(--coin-dark);}
+.mini-panel.save .micon{background:var(--pink-pale); color:var(--pink-dark);}
+.mini-panel .mtitle{font-size:12.5px; color:var(--ink-soft); font-weight:700;}
+.mini-panel .mval{font-family:'Gaegu'; font-size:26px; margin:4px 0 10px;}
+.mini-panel.coin .mval{color:var(--coin-dark);}
+.mini-panel.save .mval{color:var(--pink-dark);}
+.mini-panel button{width:100%;}
+
+.notice-box{ background:var(--chalk); color:#fff; border-radius:18px; padding:16px; margin-bottom:14px; }
+.notice-box .ntitle{font-weight:900; font-size:14px; margin-bottom:8px; display:flex; align-items:center; gap:6px;}
+.notice-box ul{margin:0; padding-left:18px; font-size:12.5px; line-height:1.6;}
+.notice-box .empty2{font-size:12.5px; opacity:.75;}
+
+.tip-box{ background:var(--orange-pale); border:1px solid #F6D9A8; border-radius:18px; padding:14px 16px; margin-bottom:14px; }
+.tip-box .ttitle{font-weight:900; font-size:13px; color:var(--orange-dark); margin-bottom:4px;}
+.tip-box .ttext{font-size:12.5px; color:var(--ink); line-height:1.5;}
+
+.home-bottom-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:16px; }
+.home-bottom-row .mini-panel, .home-bottom-row .notice-box, .home-bottom-row .tip-box{ margin-bottom:0; height:100%; }
+@media (max-width:800px){ .home-bottom-row{grid-template-columns:1fr;} }
+
+.progress-outer{ width:100%; height:14px; background:var(--pink-pale); border-radius:999px; overflow:hidden; margin:8px 0; }
+.progress-inner{ height:100%; background:linear-gradient(90deg, var(--pink), var(--purple)); border-radius:999px; transition:width .3s ease; }
+
+.ledger-table{width:100%; border-collapse:collapse; font-size:13px;}
+.ledger-table th{ text-align:left; font-size:12px; color:var(--ink-soft); padding:8px 6px; border-bottom:2px solid var(--line); }
+.ledger-table td{ padding:9px 6px; border-bottom:1px solid var(--line); }
+.badge{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:900; }
+.badge.earn{background:var(--mint-pale); color:var(--mint-dark);}
+.badge.spend{background:#FFE3E3; color:var(--coral-dark);}
+.badge.deduct{background:#FFE3E3; color:var(--coral-dark);}
+.badge.save{background:var(--purple-pale); color:var(--purple-dark);}
+.badge.unsave{background:var(--coin-pale); color:var(--coin-dark);}
+.badge.cancelled{background:#EDEDED; color:#888;}
+
+.login-wrap{max-width:360px; margin:20px auto 0;}
+</style>
+</head>
+<body>
+<div id="app"><div id="view-root"></div></div>
+
+<!-- ===== Firebase (실시간 데이터베이스) ===== -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+  // ↓↓↓ 아래 값들을 본인의 Firebase 프로젝트 설정으로 바꿔주세요 ↓↓↓
+  // Firebase 콘솔 > 프로젝트 설정 > 일반 > "내 앱" 에서 확인할 수 있어요.
+  window.__FIREBASE_CONFIG__ = {
+    apiKey: "AIzaSyCS_NrLgRcILmc-Wqpjvq__2BD4OYCZRks",
+    authDomain: "classroom-market-2016f.firebaseapp.com",
+    databaseURL: "https://classroom-market-2016f-default-rtdb.firebaseio.com",
+    projectId: "classroom-market-2016f",
+    storageBucket: "classroom-market-2016f.firebasestorage.app",
+    messagingSenderId: "223265911191",
+    appId: "1:223265911191:web:b5193062a77b691201d4d2"
+  };
+</script>
+
+<script>
+(function(){
+  "use strict";
+
+  const K_STUDENTS='market_students', K_SHOP='market_shop', K_LOG='market_log', K_SETTINGS='market_settings', K_NOTICE='market_notice', K_LANG='market_lang';
+  const DEFAULT_PASSWORD='1234';
+  const MAX_LOG=300;
+
+  // ---------- Firebase init ----------
+  let db = null;
+  let firebaseOk = false;
+  try{
+    const cfg = window.__FIREBASE_CONFIG__;
+    if(cfg && cfg.apiKey && cfg.apiKey !== 'YOUR_API_KEY' && window.firebase){
+      firebase.initializeApp(cfg);
+      db = firebase.database();
+      firebaseOk = true;
+    }
+  }catch(e){ console.error('Firebase 초기화 실패', e); firebaseOk = false; }
+  const AVATARS=['🦁','🐼','🐧','🦊','🐸','🐻','🐨','🐰','🦄','🐯','🐵','🐶'];
+  const TIPS=[
+    '필요한 것과 원하는 것을 구분하고, 계획적으로 소비해요.',
+    '코인을 다 쓰기 전에 얼마나 남았는지 먼저 확인해요.',
+    '충동적으로 사기 전에 하루만 더 생각해봐요.',
+    '내가 가진 코인 안에서 계획을 세워봐요.'
+  ];
+
+  const I18N = {
+    ko: {
+      langLabel:'🌐 언어', langKo:'한국어', langRu:'Русский', langZh:'中文',
+      roleRibbon:'🏫 우리 반 경제 습관 프로젝트', roleSub:'스스로 모으고, 계획하고, 현명하게 사용하는 즐거운 경제 생활!',
+      roleTeacherTitle:'교사', roleTeacherDesc:'학급을 관리하고, 코인과 마켓을 운영해요!', roleTeacherBtn:'교사로 시작하기 ›',
+      roleStudentTitle:'학생', roleStudentDesc:'코인을 모으고, 마켓에서 상품을 구매해요!', roleStudentBtn:'학생으로 시작하기 ›',
+      footerTag:'🌱 오늘의 작은 선택이 내일의 큰 변화를 만들어요! 💗',
+      backHome:'← 처음으로',
+      studentLoginTitle:'🧒 학생 로그인', nameLabel:'이름', namePlaceholder:'이름 입력',
+      pwLabel:'비밀번호', pwPlaceholder:'비밀번호 입력', loginBtn:'로그인',
+      loginHint:'아이디(이름)와 비밀번호는 선생님이 알려주신 걸 입력하세요.',
+      loginErr:'이름 또는 비밀번호가 올바르지 않아요.',
+      greet:'안녕하세요! ⭐', navHome:'홈', navWallet:'내 지갑', navMarket:'학급 마켓', navSpending:'소비 기록',
+      navPwChange:'비밀번호 변경', navLogout:'로그아웃',
+      myCoin:'내 코인', viewHistory:'코인 내역 보기 ›',
+      noticeTitle:'📣 공지사항', noNotice:'등록된 공지가 없어요.', tipTitle:'💡 오늘의 경제 팁',
+      homeWelcome:(n)=>`환영해요, ${n}님!`, homeTitle:'🏫 우리 반 학급마켓',
+      earnLabel:'획득한 코인', spendLabel:'사용한 코인', totalLabel:'현재 잔액', thisMonth:'이번 달', overall:'전체',
+      popularTitle:'🏪 인기 상품', noPurchase:'아직 구매 기록이 없어요.', purchasedCount:(n)=>`${n}번 구매됨`,
+      walletTitle:(n)=>`${n}의 코인 통장`, totalEarn:'총 획득', totalSpend:'총 사용',
+      marketTitle:'🏪 학급 마켓', noItems:'아직 등록된 상품이 없어요.',
+      buyBtn:'구매하기', soldOut:'품절', notEnough:'코인 부족', unlimitedStock:'무제한 재고', stockLeft:(n)=>`재고 ${n}개`,
+      spendingTitle:'📋 소비 기록 (용돈기입장)', noRecords:'아직 기록이 없어요.',
+      colDate:'날짜', colContent:'내용', colType:'구분', colAmount:'금액', colBalance:'잔액',
+      typeEarn:'획득', typeSpend:'지출', typeDeduct:'차감', typeCancelled:'취소됨',
+      accountTitle:'🔒 비밀번호 변경', curPw:'현재 비밀번호', newPw:'새 비밀번호', confirmPw:'새 비밀번호 확인',
+      savePwBtn:'비밀번호 저장', forgotHint:'비밀번호를 잊어버리면 선생님께 말씀드려서 다시 설정해달라고 하세요.',
+      errCurPw:'현재 비밀번호가 올바르지 않아요.', errNewPwEmpty:'새 비밀번호를 입력해주세요.',
+      errPwMismatch:'새 비밀번호가 서로 달라요. 다시 확인해주세요.', pwChanged:'비밀번호가 변경되었어요.'
+    },
+    ru: {
+      langLabel:'🌐 Язык', langKo:'한국어', langRu:'Русский', langZh:'中文',
+      roleRibbon:'🏫 Проект финансовых привычек нашего класса', roleSub:'Копи, планируй и разумно трать — весёлая экономическая жизнь!',
+      roleTeacherTitle:'Учитель', roleTeacherDesc:'Управляйте классом, монетами и магазином!', roleTeacherBtn:'Начать как учитель ›',
+      roleStudentTitle:'Ученик', roleStudentDesc:'Собирай монеты и покупай товары в магазине!', roleStudentBtn:'Начать как ученик ›',
+      footerTag:'🌱 Маленький выбор сегодня — большие перемены завтра! 💗',
+      backHome:'← На главную',
+      studentLoginTitle:'🧒 Вход для ученика', nameLabel:'Имя', namePlaceholder:'Введите имя',
+      pwLabel:'Пароль', pwPlaceholder:'Введите пароль', loginBtn:'Войти',
+      loginHint:'Введите имя и пароль, которые дал вам учитель.',
+      loginErr:'Неверное имя или пароль.',
+      greet:'Привет! ⭐', navHome:'Главная', navWallet:'Мой кошелёк', navMarket:'Классный магазин', navSpending:'История трат',
+      navPwChange:'Сменить пароль', navLogout:'Выйти',
+      myCoin:'Мои монеты', viewHistory:'Смотреть историю ›',
+      noticeTitle:'📣 Объявления', noNotice:'Пока нет объявлений.', tipTitle:'💡 Совет дня по финансам',
+      homeWelcome:(n)=>`Добро пожаловать, ${n}!`, homeTitle:'🏫 Наш классный магазин',
+      earnLabel:'Заработано монет', spendLabel:'Потрачено монет', totalLabel:'Текущий баланс', thisMonth:'В этом месяце', overall:'Всего',
+      popularTitle:'🏪 Популярные товары', noPurchase:'Пока нет покупок.', purchasedCount:(n)=>`Куплено ${n} раз`,
+      walletTitle:(n)=>`Кошелёк ученика ${n}`, totalEarn:'Всего заработано', totalSpend:'Всего потрачено',
+      marketTitle:'🏪 Классный магазин', noItems:'Пока нет товаров.',
+      buyBtn:'Купить', soldOut:'Раскуплено', notEnough:'Не хватает монет', unlimitedStock:'Неограниченный запас', stockLeft:(n)=>`Осталось: ${n}`,
+      spendingTitle:'📋 История трат (дневник)', noRecords:'Пока нет записей.',
+      colDate:'Дата', colContent:'Описание', colType:'Тип', colAmount:'Сумма', colBalance:'Баланс',
+      typeEarn:'Доход', typeSpend:'Расход', typeDeduct:'Штраф', typeCancelled:'Отменено',
+      accountTitle:'🔒 Смена пароля', curPw:'Текущий пароль', newPw:'Новый пароль', confirmPw:'Повторите новый пароль',
+      savePwBtn:'Сохранить пароль', forgotHint:'Если забыли пароль, попросите учителя сбросить его.',
+      errCurPw:'Неверный текущий пароль.', errNewPwEmpty:'Введите новый пароль.',
+      errPwMismatch:'Новые пароли не совпадают. Проверьте ещё раз.', pwChanged:'Пароль изменён.'
+    },
+    zh: {
+      langLabel:'🌐 语言', langKo:'한국어', langRu:'Русский', langZh:'中文',
+      roleRibbon:'🏫 我们班的经济习惯计划', roleSub:'自己攒钱、计划、聪明花钱的快乐经济生活！',
+      roleTeacherTitle:'教师', roleTeacherDesc:'管理班级，运营金币和商店！', roleTeacherBtn:'以教师身份开始 ›',
+      roleStudentTitle:'学生', roleStudentDesc:'攒金币，在商店购买商品！', roleStudentBtn:'以学生身份开始 ›',
+      footerTag:'🌱 今天的小选择，成就明天的大改变！💗',
+      backHome:'← 返回首页',
+      studentLoginTitle:'🧒 学生登录', nameLabel:'姓名', namePlaceholder:'请输入姓名',
+      pwLabel:'密码', pwPlaceholder:'请输入密码', loginBtn:'登录',
+      loginHint:'请输入老师告诉你的姓名和密码。',
+      loginErr:'姓名或密码不正确。',
+      greet:'你好！⭐', navHome:'首页', navWallet:'我的钱包', navMarket:'班级市场', navSpending:'消费记录',
+      navPwChange:'修改密码', navLogout:'退出登录',
+      myCoin:'我的金币', viewHistory:'查看金币记录 ›',
+      noticeTitle:'📣 公告', noNotice:'暂无公告。', tipTitle:'💡 今日理财小贴士',
+      homeWelcome:(n)=>`欢迎你，${n}！`, homeTitle:'🏫 我们班的班级市场',
+      earnLabel:'获得的金币', spendLabel:'使用的金币', totalLabel:'当前余额', thisMonth:'本月', overall:'总计',
+      popularTitle:'🏪 人气商品', noPurchase:'还没有购买记录。', purchasedCount:(n)=>`已购买${n}次`,
+      walletTitle:(n)=>`${n}的金币存折`, totalEarn:'总获得', totalSpend:'总花费',
+      marketTitle:'🏪 班级市场', noItems:'还没有上架的商品。',
+      buyBtn:'购买', soldOut:'已售罄', notEnough:'金币不足', unlimitedStock:'库存不限', stockLeft:(n)=>`库存 ${n} 个`,
+      spendingTitle:'📋 消费记录（零花钱账本）', noRecords:'还没有记录。',
+      colDate:'日期', colContent:'内容', colType:'类型', colAmount:'金额', colBalance:'余额',
+      typeEarn:'获得', typeSpend:'支出', typeDeduct:'扣除', typeCancelled:'已取消',
+      accountTitle:'🔒 修改密码', curPw:'当前密码', newPw:'新密码', confirmPw:'确认新密码',
+      savePwBtn:'保存密码', forgotHint:'如果忘记密码，请让老师帮你重新设置。',
+      errCurPw:'当前密码不正确。', errNewPwEmpty:'请输入新密码。',
+      errPwMismatch:'两次输入的新密码不一致，请重新确认。', pwChanged:'密码已修改。'
+    }
+  };
+  function T(key, ...args){
+    const dict = I18N[state.lang] || I18N.ko;
+    let v = dict[key] !== undefined ? dict[key] : I18N.ko[key];
+    return typeof v === 'function' ? v(...args) : v;
+  }
+
+  const root = document.getElementById('view-root');
+
+  let state = {
+    view:'home', teacherTab:'students', studentTab:'home',
+    loggedInTeacher:false, loginError:'', studentLoginError:'',
+    currentStudentId:null,
+    students:[], shop:[], log:[], settings:{password:DEFAULT_PASSWORD}, notice:'',
+    confirmDelete:null, editingShopId:null, prevBalance:{}, loaded:false, savingMsg:'',
+    storageOk:true, addStudentError:'', confirmCancel:null,
+    pwChangeError:'', pwChangeMsg:'', lang:'ko'
+  };
+
+  async function loadJSON(key, fallback){
+    if(!firebaseOk) return fallback;
+    try{
+      const snap = await db.ref(key).once('value');
+      const v = snap.val();
+      return (v === null || v === undefined) ? fallback : v;
+    }catch(e){ console.error('불러오기 실패', key, e); return fallback; }
+  }
+  async function loadText(key, fallback){
+    if(!firebaseOk) return fallback;
+    try{
+      const snap = await db.ref(key).once('value');
+      const v = snap.val();
+      return (v === null || v === undefined) ? fallback : v;
+    }catch(e){ console.error('불러오기 실패', key, e); return fallback; }
+  }
+  async function saveJSON(key, val){
+    if(!firebaseOk) return false;
+    try{ await db.ref(key).set(val); return true; }catch(e){ console.error('저장 실패', key, e); return false; }
+  }
+  async function saveText(key, val){
+    if(!firebaseOk) return false;
+    try{ await db.ref(key).set(val); return true; }catch(e){ console.error('저장 실패', key, e); return false; }
+  }
+
+  async function loadAll(){
+    const [students, shop, log, settings, notice] = await Promise.all([
+      loadJSON(K_STUDENTS, []), loadJSON(K_SHOP, []), loadJSON(K_LOG, []),
+      loadJSON(K_SETTINGS, {password:DEFAULT_PASSWORD}), loadText(K_NOTICE, '')
+    ]);
+    state.students = students.map(s => Object.assign({password:'', coins:0, avatar:AVATARS[0], savings:0, savingsGoal:{name:'', target:0}}, s));
+    state.shop = shop; state.log = log;
+    state.settings = settings && settings.password ? settings : {password:DEFAULT_PASSWORD};
+    state.notice = notice || '';
+    state.loaded = true;
+  }
+
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function fmtCoin(n){ return (Number(n)||0).toLocaleString('ko-KR'); }
+  function fmtTime(ts){ return new Date(ts).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+  function fmtDate(ts){ return new Date(ts).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'}); }
+  function findStudent(id){ return state.students.find(s=>s.id===id); }
+  function findShop(id){ return state.shop.find(s=>s.id===id); }
+  function isThisMonth(ts){ const d=new Date(ts), n=new Date(); return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth(); }
+  function todaysTip(){ const dayIdx = Math.floor(Date.now()/86400000); return TIPS[dayIdx % TIPS.length]; }
+
+  async function addLog(entry){
+    state.log.unshift(Object.assign({id:uid(), ts:Date.now()}, entry));
+    if(state.log.length > MAX_LOG) state.log = state.log.slice(0, MAX_LOG);
+    await saveJSON(K_LOG, state.log);
+  }
+
+  function render(){
+    if(!state.loaded){ root.innerHTML = `<div class="empty">불러오는 중...</div>`; return; }
+    let html='';
+    switch(state.view){
+      case 'home': html=viewHome(); break;
+      case 'teacherLogin': html=viewTeacherLogin(); break;
+      case 'teacher': html=viewTeacher(); break;
+      case 'studentLogin': html=viewStudentLogin(); break;
+      case 'student': html=viewStudent(); break;
+      default: html=viewHome();
+    }
+    const banner = state.storageOk ? '' : `
+      <div style="background:#FDE4E4; border:2px solid var(--coral); color:var(--coral-dark); border-radius:14px; padding:12px 16px; margin-bottom:16px; font-size:13px; font-weight:700;">
+        ⚠️ 데이터베이스가 연결되지 않았어요. 이 파일 상단의 &lt;script&gt; 안 <code>__FIREBASE_CONFIG__</code> 값을
+        본인의 Firebase 프로젝트 설정으로 바꿔주세요. 지금은 학생·상품·코인 정보가 저장되지 않아요.
+      </div>`;
+    root.innerHTML = banner + html;
+  }
+
+  function viewHome(){
+    return `
+      <div class="lang-switch">
+        <button class="lang-btn ${state.lang==='ko'?'active':''}" data-action="set-lang" data-lang="ko">🇰🇷 한국어</button>
+        <button class="lang-btn ${state.lang==='ru'?'active':''}" data-action="set-lang" data-lang="ru">🇷🇺 Русский</button>
+        <button class="lang-btn ${state.lang==='zh'?'active':''}" data-action="set-lang" data-lang="zh">🇨🇳 中文</button>
+      </div>
+      <div class="ribbon-wrap"><span class="ribbon">${esc(T('roleRibbon'))}</span></div>
+      <h1 class="market-title">우리반 <span class="c1">학</span><span class="c2">급</span><span class="c3">마</span><span class="c4">켓</span></h1>
+      <div class="market-sub">${esc(T('roleSub'))}</div>
+      <div class="role-grid">
+        <div class="role-card teacher" data-action="go-teacher-login">
+          <div class="role-avatar">👩‍🏫</div>
+          <div class="rtitle">${esc(T('roleTeacherTitle'))}</div>
+          <div class="rdesc">${esc(T('roleTeacherDesc'))}</div>
+          <button class="btn-primary">${esc(T('roleTeacherBtn'))}</button>
+        </div>
+        <div class="role-card student" data-action="go-student-login">
+          <div class="role-avatar">🧒</div>
+          <div class="rtitle">${esc(T('roleStudentTitle'))}</div>
+          <div class="rdesc">${esc(T('roleStudentDesc'))}</div>
+          <button class="btn-blue">${esc(T('roleStudentBtn'))}</button>
+        </div>
+      </div>
+      <div class="footer-tag"><span>${esc(T('footerTag'))}</span></div>`;
+  }
+
+  function viewTeacherLogin(){
+    return `
+      <div class="topbar"><button class="btn-ghost btn-small btn-square" data-action="go-home">← 처음으로</button></div>
+      <div class="card login-wrap">
+        <h2 style="margin-top:0;">👩‍🏫 선생님 로그인</h2>
+        <div class="field"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력" autofocus></div>
+        ${state.loginError ? `<div class="err">${esc(state.loginError)}</div>` : ''}
+        <button class="btn-primary btn-block" data-action="teacher-login" style="margin-top:10px;">로그인</button>
+        <div class="hint" style="margin-top:10px;">기본 비밀번호는 <b>1234</b> 예요. 로그인 후 [설정] 탭에서 바꿀 수 있어요.</div>
+      </div>`;
+  }
+
+  function viewStudentLogin(){
+    return `
+      <div class="topbar"><button class="btn-ghost btn-small btn-square" data-action="go-home">${esc(T('backHome'))}</button></div>
+      <div class="card login-wrap">
+        <h2 style="margin-top:0;">${esc(T('studentLoginTitle'))}</h2>
+        <div class="field"><label>${esc(T('nameLabel'))}</label><input type="text" id="stu-name" placeholder="${esc(T('namePlaceholder'))}" autofocus></div>
+        <div class="field"><label>${esc(T('pwLabel'))}</label><input type="password" id="stu-pw" placeholder="${esc(T('pwPlaceholder'))}"></div>
+        ${state.studentLoginError ? `<div class="err">${esc(T(state.studentLoginError))}</div>` : ''}
+        <button class="btn-blue btn-block" data-action="student-login" style="margin-top:10px;">${esc(T('loginBtn'))}</button>
+        <div class="hint" style="margin-top:10px;">${esc(T('loginHint'))}</div>
+      </div>`;
+  }
+
+  function viewTeacher(){
+    const tabs=[['students','학생 관리'],['balances','코인 현황'],['shop','상점 관리'],['log','지급 기록'],['settings','설정']];
+    let body='';
+    if(state.teacherTab==='students') body=teacherStudentsTab();
+    else if(state.teacherTab==='balances') body=teacherBalancesTab();
+    else if(state.teacherTab==='shop') body=teacherShopTab();
+    else if(state.teacherTab==='log') body=teacherLogTab();
+    else body=teacherSettingsTab();
+    return `
+      <div class="topbar">
+        <div class="brand">👩‍🏫&nbsp;<div class="display" style="font-size:22px;">선생님 페이지</div></div>
+        <button class="btn-ghost btn-small btn-square" data-action="teacher-logout">로그아웃</button>
+      </div>
+      <div class="tabs">${tabs.map(([k,l])=>`<button class="tab ${state.teacherTab===k?'active':''}" data-action="teacher-tab" data-tab="${k}">${l}</button>`).join('')}</div>
+      ${body}`;
+  }
+
+  function teacherStudentsTab(){
+    const rows = state.students.map(s=>{
+      const confirming = state.confirmDelete && state.confirmDelete.type==='student' && state.confirmDelete.id===s.id;
+      return `
+        <div class="student-row">
+          <div class="name-line">
+            <div><div class="name">${esc(s.avatar||'🙂')} ${esc(s.name)}</div><span class="coin-pill">🪙 ${fmtCoin(s.coins)}</span></div>
+            <button class="${confirming?'btn-coral':'btn-ghost'} btn-small btn-square" data-action="delete-student" data-id="${s.id}">${confirming?'정말 삭제?':'학생 삭제'}</button>
+          </div>
+          <div class="mini-form">
+            <span class="mlabel">코인</span>
+            <input type="number" id="amt-${s.id}" placeholder="코인 수" min="1">
+            <input type="text" id="reason-${s.id}" placeholder="사유(선택)">
+            <button class="btn-primary btn-small" data-action="grant-coin" data-id="${s.id}" data-type="earn">➕ 지급</button>
+            <button class="btn-coral btn-small" data-action="grant-coin" data-id="${s.id}" data-type="deduct">➖ 차감</button>
+          </div>
+          <div class="mini-form">
+            <span class="mlabel">비번재설정</span>
+            <input type="text" id="newpw-${s.id}" placeholder="새 비밀번호">
+            <button class="btn-ghost btn-small btn-square" data-action="reset-student-pw" data-id="${s.id}">재설정</button>
+          </div>
+        </div>`;
+    }).join('');
+    return `
+      <div class="card">
+        <h3 style="margin-top:0;">학생 추가</h3>
+        <div class="field" style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+          <div style="flex:1; min-width:120px;"><label>이름</label><input type="text" id="new-student-name" placeholder="예: 김민준"></div>
+          <div style="flex:1; min-width:120px;"><label>초기 비밀번호</label><input type="text" id="new-student-pw" placeholder="예: 0304"></div>
+          <button class="btn-primary" data-action="add-student">추가</button>
+        </div>
+        ${state.addStudentError ? `<div class="err">${esc(state.addStudentError)}</div>` : ''}
+      </div>
+      <div class="card"><h3 style="margin-top:0;">학생 목록 (${state.students.length}명)</h3>${rows || `<div class="empty">아직 등록된 학생이 없어요. 위에서 추가해주세요.</div>`}</div>`;
+  }
+
+  function teacherShopTab(){
+    const editing = state.editingShopId ? findShop(state.editingShopId) : null;
+    const items = state.shop.map(it=>{
+      const confirming = state.confirmDelete && state.confirmDelete.type==='shop' && state.confirmDelete.id===it.id;
+      return `
+        <div class="shop-item">
+          <div class="emoji">${esc(it.emoji||'🎁')}</div>
+          <div class="name">${esc(it.name)}</div>
+          <div class="price">🪙 ${fmtCoin(it.price)}</div>
+          <div class="stock ${!(it.stock===null||it.stock===undefined)&&Number(it.stock)<=0?'out':''}">${it.stock===null||it.stock===''||it.stock===undefined? '무제한 재고' : '재고 '+it.stock+'개'}</div>
+          <div style="display:flex; gap:6px; justify-content:center;">
+            <button class="btn-ghost btn-small btn-square" data-action="edit-shop" data-id="${it.id}">수정</button>
+            <button class="${confirming?'btn-coral':'btn-ghost'} btn-small btn-square" data-action="delete-shop" data-id="${it.id}">${confirming?'삭제확인':'삭제'}</button>
+          </div>
+        </div>`;
+    }).join('');
+    return `
+      <div class="card">
+        <h3 style="margin-top:0;">${editing? '상품 수정' : '상품 추가'}</h3>
+        <div class="field" style="display:flex; gap:8px; flex-wrap:wrap;">
+          <div style="width:70px;"><label>이모지</label><input type="text" id="shop-emoji" placeholder="🎁" value="${editing?esc(editing.emoji||''):''}"></div>
+          <div style="flex:1; min-width:120px;"><label>상품명</label><input type="text" id="shop-name" placeholder="예: 연필 세트" value="${editing?esc(editing.name):''}"></div>
+          <div style="width:100px;"><label>가격(코인)</label><input type="number" id="shop-price" placeholder="10" value="${editing?editing.price:''}"></div>
+          <div style="width:100px;"><label>재고(선택)</label><input type="number" id="shop-stock" placeholder="무제한" value="${editing? it_stock_display(editing):''}"></div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <button class="btn-primary" data-action="save-shop">${editing?'수정 저장':'상품 추가'}</button>
+          ${editing? `<button class="btn-ghost btn-square" data-action="cancel-edit-shop">취소</button>` : ''}
+        </div>
+      </div>
+      <div class="card"><h3 style="margin-top:0;">상점 상품 (${state.shop.length}개)</h3>${state.shop.length ? `<div class="shop-grid">${items}</div>` : `<div class="empty">등록된 상품이 없어요.</div>`}</div>`;
+  }
+  function it_stock_display(item){ return (item.stock===null||item.stock===undefined||item.stock==='') ? '' : item.stock; }
+
+  function teacherBalancesTab(){
+    const sorted = state.students.slice().sort((a,b)=>b.coins-a.coins);
+    const total = state.students.reduce((a,s)=>a+(s.coins||0),0);
+    const rows = sorted.map((s,i)=>`
+      <div class="student-row" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="muted" style="width:20px; display:inline-block; text-align:center; font-weight:900;">${i+1}</span>
+          <span style="font-size:22px;">${esc(s.avatar||'🙂')}</span>
+          <span class="name">${esc(s.name)}</span>
+        </div>
+        <span class="coin-pill">🪙 ${fmtCoin(s.coins)}</span>
+      </div>`).join('');
+    return `
+      <div class="card">
+        <h3 style="margin-top:0;">💰 학생 코인 현황</h3>
+        <div class="hint" style="margin-bottom:10px;">코인이 많은 순서로 정렬돼요. 반 전체 합계: <b>${fmtCoin(total)} 코인</b></div>
+        ${rows || `<div class="empty">등록된 학생이 없어요.</div>`}
+      </div>`;
+  }
+
+  function teacherLogTab(){
+    const rows = state.log.map(l=>{
+      const canCancel = (l.type==='earn'||l.type==='deduct') && !l.cancelled;
+      const confirming = state.confirmCancel === l.id;
+      const sign = (l.type==='earn'||l.type==='unsave') ? '+' : (l.type==='save' ? '→' : '-');
+      return `
+      <div class="log-item">
+        <div>
+          <b>${esc(l.studentName)}</b><span class="muted"> · ${esc(l.reason||'')}</span>
+          ${l.cancelled ? ' <span class="badge cancelled">취소됨</span>' : ''}
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span class="log-amt ${l.type}" style="${l.cancelled?'text-decoration:line-through; opacity:.5;':''}">${sign}${fmtCoin(l.amount)}</span>
+          <span class="muted">· ${fmtTime(l.ts)}</span>
+          ${canCancel ? `<button class="${confirming?'btn-coral':'btn-ghost'} btn-small btn-square" data-action="cancel-log" data-id="${l.id}">${confirming?'취소 확정':'취소'}</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="card"><h3 style="margin-top:0;">최근 지급/구매 기록</h3>${rows || `<div class="empty">아직 기록이 없어요.</div>`}</div>`;
+  }
+
+  function teacherSettingsTab(){
+    return `
+      <div class="card login-wrap">
+        <h3 style="margin-top:0;">선생님 비밀번호 변경</h3>
+        <div class="field"><label>새 비밀번호</label><input type="password" id="new-pw" placeholder="새 비밀번호"></div>
+        <button class="btn-primary" data-action="change-password">비밀번호 저장</button>
+        <div class="hint" style="margin-top:14px;">⚠️ 이 비밀번호는 간단한 접근 제한용이에요. 학생들에게 알려주지 않도록 주의하세요.</div>
+      </div>
+      <div class="card login-wrap">
+        <h3 style="margin-top:0;">📣 공지사항</h3>
+        <div class="hint" style="margin-bottom:8px;">한 줄에 하나씩 적으면 학생 홈 화면에 목록으로 보여요.</div>
+        <textarea id="notice-text" placeholder="예: 이번 주 과자 가격이 10코인 → 15코인으로 변경됩니다!">${esc(state.notice)}</textarea>
+        <button class="btn-purple" data-action="save-notice" style="margin-top:8px;">공지 저장</button>
+        ${state.savingMsg? `<div class="hint" style="color:var(--mint-dark); font-weight:700;">${esc(state.savingMsg)}</div>` : ''}
+      </div>`;
+  }
+
+  function studentStats(s){
+    const mine = state.log.filter(l=>l.studentId===s.id && !l.cancelled);
+    const monthEarn = mine.filter(l=>l.type==='earn'&&isThisMonth(l.ts)).reduce((a,l)=>a+l.amount,0);
+    const monthSpend = mine.filter(l=>l.type==='spend'&&isThisMonth(l.ts)).reduce((a,l)=>a+l.amount,0);
+    return {monthEarn, monthSpend};
+  }
+  function popularItems(){
+    const counts={};
+    state.log.forEach(l=>{ if(l.type!=='spend'||!l.itemName) return; const k=l.itemName; if(!counts[k]) counts[k]={name:l.itemName, emoji:l.itemEmoji||'🎁', count:0}; counts[k].count++; });
+    return Object.values(counts).sort((a,b)=>b.count-a.count).slice(0,5);
+  }
+
+  function sideNav(s){
+    const tabs=[['home','🏠',T('navHome')],['wallet','💰',T('navWallet')],['market','🏪',T('navMarket')],['spending','📋',T('navSpending')]];
+    return `
+      <aside class="side-nav">
+        <div class="profile-box">
+          <div class="avatar" data-action="change-avatar">${esc(s.avatar||'🙂')}</div>
+          <div class="greet">${esc(T('greet'))}</div>
+          <div class="pname">${esc(s.name)}</div>
+          <span class="coin-pill">🪙 ${fmtCoin(s.coins)}</span>
+        </div>
+        <div class="nav-list">
+          ${tabs.map(([k,ico,label])=>`<button class="nav-item ${state.studentTab===k?'active':''}" data-tab="${k}" data-action="student-tab"><span class="ic-circle">${ico}</span>${esc(label)}</button>`).join('')}
+        </div>
+        <div class="nav-list" style="margin-top:14px; border-top:1px solid var(--line); padding-top:10px;">
+          <button class="nav-item ${state.studentTab==='account'?'active':''}" data-action="student-tab" data-tab="account"><span class="ic-circle" style="background:var(--blue-pale);color:var(--blue-dark);">🔒</span>${esc(T('navPwChange'))}</button>
+          <button class="nav-item" data-action="student-logout"><span class="ic-circle" style="background:#FDE4E4;color:var(--coral-dark);">↩️</span>${esc(T('navLogout'))}</button>
+        </div>
+      </aside>`;
+  }
+
+  function sideRightCards(s){
+    const notice = (state.notice||'').split('\n').map(x=>x.trim()).filter(Boolean);
+    return `
+      <div class="mini-panel coin">
+        <div class="mtop"><div class="micon">🪙</div><div class="mtitle">${esc(T('myCoin'))}</div></div>
+        <div class="mval">${fmtCoin(s.coins)}</div>
+        <button class="btn-blue btn-small" data-action="student-tab" data-tab="wallet">${esc(T('viewHistory'))}</button>
+      </div>
+      <div class="notice-box">
+        <div class="ntitle">${esc(T('noticeTitle'))}</div>
+        ${notice.length ? `<ul>${notice.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>` : `<div class="empty2">${esc(T('noNotice'))}</div>`}
+      </div>
+      <div class="tip-box">
+        <div class="ttitle">${esc(T('tipTitle'))}</div>
+        <div class="ttext">${esc(todaysTip())}</div>
+      </div>`;
+  }
+
+  function sideRight(s){
+    return `<aside class="side-right">${sideRightCards(s)}</aside>`;
+  }
+
+  function viewStudent(){
+    const s = findStudent(state.currentStudentId);
+    if(!s){ state.view='studentLogin'; return viewStudentLogin(); }
+    const bump = state.prevBalance[s.id]!==undefined && state.prevBalance[s.id]!==s.coins;
+    state.prevBalance[s.id] = s.coins;
+    let content='';
+    if(state.studentTab==='wallet') content=tabWallet(s);
+    else if(state.studentTab==='market') content=tabMarket(s);
+    else if(state.studentTab === 'spending') content = tabSpending(s);
+    else if(state.studentTab === 'account') content = tabAccount(s);
+    else content = tabHome(s, bump);
+    return `<div class="app-shell">${sideNav(s)}<main class="main-content">${content}</main>${sideRight(s)}</div>`;
+  }
+
+  function tabHome(s, bump){
+    const st = studentStats(s);
+    const pop = popularItems();
+    const popHtml = pop.length ? pop.map((p,i)=>`
+      <div class="popular-card"><div class="rank">${i+1}</div><div class="pemoji">${esc(p.emoji)}</div>
+      <div class="pname">${esc(p.name)}</div><div class="pcount">${esc(T('purchasedCount', p.count))}</div></div>`).join('') : `<div class="empty">${esc(T('noPurchase'))}</div>`;
+    return `
+      <div class="chalk-hero">
+        <div class="htitle">${esc(T('homeTitle'))}</div>
+        <div class="hsub">${esc(T('homeWelcome', s.name))}</div>
+        <div class="hbal ${bump?'bump':''}">🪙 ${fmtCoin(s.coins)}</div>
+      </div>
+      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat-card earn"><div class="sicon">👛</div><div class="slabel">${esc(T('earnLabel'))}</div><div class="sval">${fmtCoin(st.monthEarn)}</div><div class="muted">${esc(T('thisMonth'))}</div></div>
+        <div class="stat-card spend"><div class="sicon">🧺</div><div class="slabel">${esc(T('spendLabel'))}</div><div class="sval">${fmtCoin(st.monthSpend)}</div><div class="muted">${esc(T('thisMonth'))}</div></div>
+        <div class="stat-card total"><div class="sicon">🪙</div><div class="slabel">${esc(T('totalLabel'))}</div><div class="sval">${fmtCoin(s.coins)}</div><div class="muted">${esc(T('overall'))}</div></div>
+      </div>
+      <div class="card"><h3 style="margin-top:0;">${esc(T('popularTitle'))}</h3><div class="popular-list">${popHtml}</div></div>`;
+  }
+
+  function tabWallet(s){
+    const mine = state.log.filter(l=>l.studentId===s.id && !l.cancelled);
+    const totalEarn = mine.filter(l=>l.type==='earn').reduce((a,l)=>a+l.amount,0);
+    const totalSpend = mine.filter(l=>l.type==='spend').reduce((a,l)=>a+l.amount,0);
+    return `
+      <div class="passbook"><div class="who">${esc(T('walletTitle', s.name))}</div><div class="balance">🪙 ${fmtCoin(s.coins)}</div></div>
+      <div class="stat-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="stat-card earn"><div class="sicon">👛</div><div class="slabel">${esc(T('totalEarn'))}</div><div class="sval">+${fmtCoin(totalEarn)}</div></div>
+        <div class="stat-card spend"><div class="sicon">🧺</div><div class="slabel">${esc(T('totalSpend'))}</div><div class="sval">-${fmtCoin(totalSpend)}</div></div>
+      </div>`;
+  }
+
+  function tabMarket(s){
+    const cards = state.shop.map(it=>{
+      const soldOut = !(it.stock===null||it.stock===undefined) && Number(it.stock)<=0;
+      const canAfford = s.coins >= it.price;
+      const disabled = soldOut || !canAfford;
+      const stockText = soldOut ? T('soldOut') : (it.stock===null||it.stock===undefined ? T('unlimitedStock') : T('stockLeft', it.stock));
+      const btnText = soldOut ? T('soldOut') : (canAfford ? T('buyBtn') : T('notEnough'));
+      return `
+        <div class="shop-item">
+          <div class="emoji">${esc(it.emoji||'🎁')}</div>
+          <div class="name">${esc(it.name)}</div>
+          <div class="price">🪙 ${fmtCoin(it.price)}</div>
+          <div class="stock ${soldOut?'out':''}">${esc(stockText)}</div>
+          <button class="btn-coral btn-small" data-action="buy-item" data-id="${it.id}" ${disabled?'disabled':''}>${esc(btnText)}</button>
+        </div>`;
+    }).join('');
+    return `<div class="card"><h3 style="margin-top:0;">${esc(T('marketTitle'))}</h3>${state.shop.length ? `<div class="shop-grid">${cards}</div>` : `<div class="empty">${esc(T('noItems'))}</div>`}</div>`;
+  }
+
+  function tabSpending(s){
+    const entries = state.log.filter(l=>l.studentId===s.id).slice().sort((a,b)=>a.ts-b.ts);
+    let bal=0;
+    const withBal = entries.map(e=>{
+      if(!e.cancelled){
+        if(e.type==='earn'||e.type==='unsave') bal+=e.amount;
+        else if(e.type==='spend'||e.type==='save'||e.type==='deduct') bal-=e.amount;
+      }
+      return Object.assign({}, e, {balanceAfter: bal});
+    }).reverse();
+    const typeLabel={earn:T('typeEarn'), spend:T('typeSpend'), deduct:T('typeDeduct')};
+    const rows = withBal.map(e=>{
+      const sign = (e.type==='earn'||e.type==='unsave') ? '+' : '-';
+      const cancelledStyle = e.cancelled ? 'text-decoration:line-through; opacity:.5;' : '';
+      return `
+      <tr style="${cancelledStyle}"><td>${fmtDate(e.ts)}</td><td>${esc(e.reason||'')}${e.cancelled?` <span class="badge cancelled" style="text-decoration:none;">${esc(T('typeCancelled'))}</span>`:''}</td><td><span class="badge ${e.type}" style="text-decoration:none;">${esc(typeLabel[e.type]||e.type)}</span></td>
+      <td style="text-align:right;">${sign}${fmtCoin(e.amount)}</td><td style="text-align:right;">${e.cancelled?'-':fmtCoin(e.balanceAfter)}</td></tr>`;
+    }).join('');
+    return `<div class="card"><h3 style="margin-top:0;">${esc(T('spendingTitle'))}</h3>
+      ${withBal.length ? `<div style="overflow-x:auto;"><table class="ledger-table"><thead><tr><th>${esc(T('colDate'))}</th><th>${esc(T('colContent'))}</th><th>${esc(T('colType'))}</th><th style="text-align:right;">${esc(T('colAmount'))}</th><th style="text-align:right;">${esc(T('colBalance'))}</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">${esc(T('noRecords'))}</div>`}</div>`;
+  }
+
+  function tabAccount(s){
+    return `
+      <div class="card login-wrap">
+        <h3 style="margin-top:0;">${esc(T('accountTitle'))}</h3>
+        <div class="field"><label>${esc(T('curPw'))}</label><input type="password" id="cur-pw" placeholder="${esc(T('curPw'))}"></div>
+        <div class="field"><label>${esc(T('newPw'))}</label><input type="password" id="new-own-pw" placeholder="${esc(T('newPw'))}"></div>
+        <div class="field"><label>${esc(T('confirmPw'))}</label><input type="password" id="confirm-own-pw" placeholder="${esc(T('confirmPw'))}"></div>
+        ${state.pwChangeError ? `<div class="err">${esc(T(state.pwChangeError))}</div>` : ''}
+        ${state.pwChangeMsg ? `<div class="hint" style="color:var(--mint-dark); font-weight:700;">${esc(T(state.pwChangeMsg))}</div>` : ''}
+        <button class="btn-blue btn-block" data-action="change-own-password" style="margin-top:8px;">${esc(T('savePwBtn'))}</button>
+        <div class="hint" style="margin-top:10px;">${esc(T('forgotHint'))}</div>
+      </div>`;
+  }
+
+  async function handleAction(action, target){
+    const id = target.getAttribute('data-id');
+    if(action==='set-lang'){
+      const lang = target.getAttribute('data-lang');
+      if(I18N[lang]){
+        state.lang = lang;
+        try{ localStorage.setItem(K_LANG, lang); }catch(e){}
+      }
+      render(); return;
+    }
+    if(action==='go-teacher-login'){ state.view='teacherLogin'; state.loginError=''; render(); return; }
+    if(action==='go-student-login'){ state.view='studentLogin'; state.studentLoginError=''; render(); return; }
+    if(action==='go-home'){ state.view='home'; render(); return; }
+
+    if(action==='teacher-login'){
+      const pw=document.getElementById('pw-input').value;
+      await loadAll();
+      if(pw===(state.settings.password||DEFAULT_PASSWORD)){ state.loggedInTeacher=true; state.view='teacher'; state.loginError=''; }
+      else{ state.loginError='비밀번호가 틀렸어요. 다시 시도해주세요.'; }
+      render(); return;
+    }
+    if(action==='teacher-logout'){ state.loggedInTeacher=false; state.view='home'; render(); return; }
+    if(action==='teacher-tab'){ state.teacherTab=target.getAttribute('data-tab'); state.confirmDelete=null; state.editingShopId=null; state.savingMsg=''; state.addStudentError=''; state.confirmCancel=null; render(); return; }
+
+    if(action==='add-student'){
+      const name=document.getElementById('new-student-name').value.trim();
+      const pw=document.getElementById('new-student-pw').value.trim();
+      if(!name && !pw){ state.addStudentError='이름과 초기 비밀번호를 모두 입력해주세요.'; render(); return; }
+      if(!name){ state.addStudentError='이름을 입력해주세요.'; render(); return; }
+      if(!pw){ state.addStudentError='초기 비밀번호를 입력해주세요.'; render(); return; }
+      await loadAll();
+      if(state.students.some(s => s.name === name)){
+        state.addStudentError='이미 같은 이름의 학생이 있어요. 이름을 다르게 구분해주세요 (예: 홍길동1).';
+        render(); return;
+      }
+      state.students.push({id:uid(), name, password:pw, coins:0, avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)], savings:0, savingsGoal:{name:'',target:0}});
+      await saveJSON(K_STUDENTS, state.students);
+      state.addStudentError='';
+      render(); return;
+    }
+    if(action==='delete-student'){
+      if(state.confirmDelete && state.confirmDelete.type==='student' && state.confirmDelete.id===id){
+        await loadAll(); state.students=state.students.filter(s=>s.id!==id); await saveJSON(K_STUDENTS, state.students); state.confirmDelete=null;
+      }else{ state.confirmDelete={type:'student', id}; }
+      render(); return;
+    }
+    if(action==='grant-coin'){
+      const type = target.getAttribute('data-type') === 'deduct' ? 'deduct' : 'earn';
+      const raw = parseInt(document.getElementById('amt-'+id).value,10);
+      if(!raw || raw<=0) return;
+      const amt = Math.abs(raw);
+      const reason=document.getElementById('reason-'+id).value.trim();
+      await loadAll(); const s=findStudent(id); if(!s) return;
+      s.coins = (s.coins||0) + (type==='deduct' ? -amt : amt);
+      await saveJSON(K_STUDENTS, state.students);
+      await addLog({studentId:s.id, studentName:s.name, type, amount: amt, reason: reason || (type==='deduct'?'선생님 차감':'선생님 지급'), cancelled:false});
+      render(); return;
+    }
+    if(action==='cancel-log'){
+      if(state.confirmCancel === id){
+        await loadAll();
+        const entry = state.log.find(l=>l.id===id);
+        if(entry && !entry.cancelled && (entry.type==='earn'||entry.type==='deduct')){
+          const s = findStudent(entry.studentId);
+          if(s){
+            s.coins = (s.coins||0) + (entry.type==='earn' ? -entry.amount : entry.amount);
+            await saveJSON(K_STUDENTS, state.students);
+          }
+          entry.cancelled = true;
+          entry.cancelledAt = Date.now();
+          await saveJSON(K_LOG, state.log);
+        }
+        state.confirmCancel = null;
+      }else{
+        state.confirmCancel = id;
+      }
+      render(); return;
+    }
+    if(action==='reset-student-pw'){
+      const pw=document.getElementById('newpw-'+id).value.trim();
+      if(!pw) return;
+      await loadAll(); const s=findStudent(id); if(!s) return;
+      s.password=pw; await saveJSON(K_STUDENTS, state.students);
+      state.savingMsg='비밀번호가 재설정되었어요.'; render(); return;
+    }
+    if(action==='save-shop'){
+      const emoji=document.getElementById('shop-emoji').value.trim()||'🎁';
+      const name=document.getElementById('shop-name').value.trim();
+      const price=parseInt(document.getElementById('shop-price').value,10);
+      const stockRaw=document.getElementById('shop-stock').value;
+      const stock=stockRaw===''?null:parseInt(stockRaw,10);
+      if(!name||!price||price<=0) return;
+      await loadAll();
+      if(state.editingShopId){ const it=findShop(state.editingShopId); if(it){it.emoji=emoji;it.name=name;it.price=price;it.stock=stock;} state.editingShopId=null; }
+      else{ state.shop.push({id:uid(), emoji, name, price, stock}); }
+      await saveJSON(K_SHOP, state.shop);
+      render(); return;
+    }
+    if(action==='edit-shop'){ state.editingShopId=id; render(); return; }
+    if(action==='cancel-edit-shop'){ state.editingShopId=null; render(); return; }
+    if(action==='delete-shop'){
+      if(state.confirmDelete && state.confirmDelete.type==='shop' && state.confirmDelete.id===id){
+        await loadAll(); state.shop=state.shop.filter(s=>s.id!==id); await saveJSON(K_SHOP, state.shop); state.confirmDelete=null;
+      }else{ state.confirmDelete={type:'shop', id}; }
+      render(); return;
+    }
+    if(action==='change-password'){
+      const pw=document.getElementById('new-pw').value.trim(); if(!pw) return;
+      state.settings.password=pw; await saveJSON(K_SETTINGS, state.settings);
+      state.savingMsg='비밀번호가 저장되었어요.'; render(); return;
+    }
+    if(action==='save-notice'){
+      const text=document.getElementById('notice-text').value;
+      state.notice=text; await saveText(K_NOTICE, text);
+      state.savingMsg='공지사항이 저장되었어요.'; render(); return;
+    }
+    if(action==='student-login'){
+      const name=document.getElementById('stu-name').value.trim();
+      const pw=document.getElementById('stu-pw').value;
+      if(!name||!pw) return;
+      await loadAll();
+      const s=state.students.find(st=>st.name===name);
+      if(!s || s.password!==pw){ state.studentLoginError='loginErr'; render(); return; }
+      state.currentStudentId=s.id; state.view='student'; state.studentTab='home'; state.studentLoginError='';
+      render(); return;
+    }
+    if(action==='student-logout'){ state.currentStudentId=null; state.view='studentLogin'; render(); return; }
+    if(action==='student-tab'){ state.studentTab=target.getAttribute('data-tab'); state.pwChangeError=''; state.pwChangeMsg=''; render(); return; }
+    if(action==='change-avatar'){
+      const s=findStudent(state.currentStudentId); if(!s) return;
+      const idx=AVATARS.indexOf(s.avatar); s.avatar=AVATARS[(idx+1+AVATARS.length)%AVATARS.length];
+      await saveJSON(K_STUDENTS, state.students); render(); return;
+    }
+    if(action==='change-own-password'){
+      const cur = document.getElementById('cur-pw').value;
+      const next = document.getElementById('new-own-pw').value.trim();
+      const confirmPw = document.getElementById('confirm-own-pw').value.trim();
+      await loadAll();
+      const s = findStudent(state.currentStudentId);
+      if(!s) return;
+      if(cur !== s.password){ state.pwChangeError='errCurPw'; state.pwChangeMsg=''; render(); return; }
+      if(!next){ state.pwChangeError='errNewPwEmpty'; state.pwChangeMsg=''; render(); return; }
+      if(next !== confirmPw){ state.pwChangeError='errPwMismatch'; state.pwChangeMsg=''; render(); return; }
+      s.password = next;
+      await saveJSON(K_STUDENTS, state.students);
+      state.pwChangeError=''; state.pwChangeMsg='pwChanged';
+      render(); return;
+    }
+    if(action==='buy-item'){
+      await loadAll(); const s=findStudent(state.currentStudentId); const it=findShop(id); if(!s||!it) return;
+      const soldOut = !(it.stock===null||it.stock===undefined) && Number(it.stock)<=0;
+      if(soldOut || s.coins<it.price){ render(); return; }
+      s.coins-=it.price; if(!(it.stock===null||it.stock===undefined)) it.stock=Number(it.stock)-1;
+      await saveJSON(K_STUDENTS, state.students); await saveJSON(K_SHOP, state.shop);
+      await addLog({studentId:s.id, studentName:s.name, type:'spend', amount:it.price, reason:`${it.emoji||'🎁'} ${it.name} 구매`, itemId:it.id, itemName:it.name, itemEmoji:it.emoji});
+      render(); return;
+    }
+  }
+
+  root.addEventListener('click', (e)=>{
+    const target=e.target.closest('[data-action]'); if(!target) return;
+    handleAction(target.getAttribute('data-action'), target);
+  });
+
+  async function pollRefresh(){
+    const active=document.activeElement;
+    const typing = active && (active.tagName==='INPUT'||active.tagName==='TEXTAREA');
+    if(typing) return;
+    await loadAll(); render();
+  }
+
+  (async function init(){
+    state.storageOk = firebaseOk;
+    try{
+      const savedLang = localStorage.getItem(K_LANG);
+      if(savedLang && I18N[savedLang]) state.lang = savedLang;
+    }catch(e){}
+    await loadAll(); render(); setInterval(pollRefresh, 6000);
+  })();
+})();
+</script>
+</body>
+</html>
