@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>우리반 마켓</title>
+<title>우리반 학급마켓</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
 
@@ -216,12 +216,12 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
 <body>
 <div id="app"><div id="view-root"></div></div>
 
-<!-- ===== Firebase (실시간 데이터베이스) ===== -->
+<!-- ===== Firebase (인증 + 실시간 데이터베이스) ===== -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
-  // ↓↓↓ 아래 값들을 본인의 Firebase 프로젝트 설정으로 바꿔주세요 ↓↓↓
-  // Firebase 콘솔 > 프로젝트 설정 > 일반 > "내 앱" 에서 확인할 수 있어요.
+  // Firebase 콘솔 > 프로젝트 설정 > 일반 > "내 앱" 의 설정값 (공개되어도 되는 식별 정보예요)
   window.__FIREBASE_CONFIG__ = {
     apiKey: "AIzaSyCS_NrLgRcILmc-Wqpjvq__2BD4OYCZRks",
     authDomain: "classroom-market-2016f.firebaseapp.com",
@@ -237,21 +237,38 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
 (function(){
   "use strict";
 
-  const K_STUDENTS='market_students', K_SHOP='market_shop', K_LOG='market_log', K_SETTINGS='market_settings', K_NOTICE='market_notice', K_LANG='market_lang';
-  const DEFAULT_PASSWORD='1234';
-  const MAX_LOG=300;
+  const K_LANG='market_lang';
+  const PW_SUFFIX='#cm';              // Firebase 최소 6자 조건을 맞추기 위한 내부 덧붙임 (사용자는 몰라도 돼요)
+  const MIN_PW=4;
 
   // ---------- Firebase init ----------
-  let db = null;
-  let firebaseOk = false;
+  let db=null, auth=null, auth2=null, firebaseOk=false;
+  const cfg = window.__FIREBASE_CONFIG__;
   try{
-    const cfg = window.__FIREBASE_CONFIG__;
-    if(cfg && cfg.apiKey && cfg.apiKey !== 'YOUR_API_KEY' && window.firebase){
-      firebase.initializeApp(cfg);
-      db = firebase.database();
-      firebaseOk = true;
+    firebase.initializeApp(cfg);
+    auth = firebase.auth();
+    db = firebase.database();
+    firebaseOk = true;
+  }catch(e){ console.error('Firebase 초기화 실패', e); }
+  function secondaryAuth(){
+    if(!auth2){
+      const app = firebase.initializeApp(cfg, 'secondary');
+      auth2 = app.auth();
+      auth2.setPersistence(firebase.auth.Auth.Persistence.NONE);
     }
-  }catch(e){ console.error('Firebase 초기화 실패', e); firebaseOk = false; }
+    return auth2;
+  }
+
+  // ---------- 학생 계정 규칙 ----------
+  // 학생 이름 -> SHA-256 해시 -> 가짜 이메일(학생은 이메일을 알 필요가 없어요)
+  async function nameHash(name){
+    const norm = name.normalize('NFC').trim().toLowerCase().replace(/\s+/g,'');
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('cm1|'+norm));
+    return Array.from(new Uint8Array(buf)).slice(0,16).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  const stuEmail = (h,v)=>`s${h}x${v}@classmarket.invalid`;
+  const padPw = p => p + PW_SUFFIX;
+
   const AVATARS=['🦁','🐼','🐧','🦊','🐸','🐻','🐨','🐰','🦄','🐯','🐵','🐶'];
   const TIPS=[
     '필요한 것과 원하는 것을 구분하고, 계획적으로 소비해요.',
@@ -349,6 +366,22 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
       errPwMismatch:'两次输入的新密码不一致，请重新确认。', pwChanged:'密码已修改。'
     }
   };
+
+
+  // ---------- 추가 번역 키 ----------
+  Object.assign(I18N.ko, {
+    errPwShort:`새 비밀번호는 ${MIN_PW}자 이상이어야 해요.`, buyFail:'구매하지 못했어요. 잠시 후 다시 시도해주세요.',
+    loading:'불러오는 중...', netErr:'인터넷 연결을 확인해주세요.'
+  });
+  Object.assign(I18N.ru, {
+    errPwShort:`Новый пароль должен содержать не менее ${MIN_PW} символов.`, buyFail:'Не удалось купить. Попробуйте ещё раз позже.',
+    loading:'Загрузка...', netErr:'Проверьте подключение к интернету.'
+  });
+  Object.assign(I18N.zh, {
+    errPwShort:`新密码至少需要${MIN_PW}个字符。`, buyFail:'购买失败，请稍后再试。',
+    loading:'加载中...', netErr:'请检查网络连接。'
+  });
+
   function T(key, ...args){
     const dict = I18N[state.lang] || I18N.ko;
     let v = dict[key] !== undefined ? dict[key] : I18N.ko[key];
@@ -359,52 +392,16 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
 
   let state = {
     view:'home', teacherTab:'students', studentTab:'home',
-    loggedInTeacher:false, loginError:'', studentLoginError:'',
+    role:null, uid:null, loginError:'', studentLoginError:'', setupMode:false, authBusy:false,
     currentStudentId:null,
-    students:[], shop:[], log:[], settings:{password:DEFAULT_PASSWORD}, notice:'',
-    confirmDelete:null, editingShopId:null, prevBalance:{}, loaded:false, savingMsg:'',
-    storageOk:true, addStudentError:'', confirmCancel:null,
-    pwChangeError:'', pwChangeMsg:'', lang:'ko'
+    students:[], shop:[], log:[], notice:'',
+    confirmDelete:null, editingShopId:null, prevBalance:{}, loaded:true, savingMsg:'',
+    addStudentError:'', confirmCancel:null, buyMsg:'',
+    pwChangeError:'', pwChangeMsg:'', lang:'ko', teacherEmail:'', busyMsg:''
   };
+  let intent=null, suspendAuth=false;
 
-  async function loadJSON(key, fallback){
-    if(!firebaseOk) return fallback;
-    try{
-      const snap = await db.ref(key).once('value');
-      const v = snap.val();
-      return (v === null || v === undefined) ? fallback : v;
-    }catch(e){ console.error('불러오기 실패', key, e); return fallback; }
-  }
-  async function loadText(key, fallback){
-    if(!firebaseOk) return fallback;
-    try{
-      const snap = await db.ref(key).once('value');
-      const v = snap.val();
-      return (v === null || v === undefined) ? fallback : v;
-    }catch(e){ console.error('불러오기 실패', key, e); return fallback; }
-  }
-  async function saveJSON(key, val){
-    if(!firebaseOk) return false;
-    try{ await db.ref(key).set(val); return true; }catch(e){ console.error('저장 실패', key, e); return false; }
-  }
-  async function saveText(key, val){
-    if(!firebaseOk) return false;
-    try{ await db.ref(key).set(val); return true; }catch(e){ console.error('저장 실패', key, e); return false; }
-  }
-
-  async function loadAll(){
-    const [students, shop, log, settings, notice] = await Promise.all([
-      loadJSON(K_STUDENTS, []), loadJSON(K_SHOP, []), loadJSON(K_LOG, []),
-      loadJSON(K_SETTINGS, {password:DEFAULT_PASSWORD}), loadText(K_NOTICE, '')
-    ]);
-    state.students = students.map(s => Object.assign({password:'', coins:0, avatar:AVATARS[0], savings:0, savingsGoal:{name:'', target:0}}, s));
-    state.shop = shop; state.log = log;
-    state.settings = settings && settings.password ? settings : {password:DEFAULT_PASSWORD};
-    state.notice = notice || '';
-    state.loaded = true;
-  }
-
-  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function uid_(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function fmtCoin(n){ return (Number(n)||0).toLocaleString('ko-KR'); }
   function fmtTime(ts){ return new Date(ts).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
@@ -414,27 +411,114 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
   function isThisMonth(ts){ const d=new Date(ts), n=new Date(); return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth(); }
   function todaysTip(){ const dayIdx = Math.floor(Date.now()/86400000); return TIPS[dayIdx % TIPS.length]; }
 
-  async function addLog(entry){
-    state.log.unshift(Object.assign({id:uid(), ts:Date.now()}, entry));
-    if(state.log.length > MAX_LOG) state.log = state.log.slice(0, MAX_LOG);
-    await saveJSON(K_LOG, state.log);
+  // ---------- 실시간 데이터 연결 ----------
+  let unsubs=[];
+  function detach(){ unsubs.forEach(f=>{ try{f();}catch(e){} }); unsubs=[]; }
+  function listen(path, cb){
+    const ref=db.ref(path);
+    const h=ref.on('value', snap=>{ cb(snap); softRender(); }, err=>console.error('읽기 거부/실패', path, err && err.code));
+    unsubs.push(()=>ref.off('value',h));
+  }
+  function shopFrom(snap){
+    const v=snap.val()||{};
+    return Object.keys(v).map(k=>Object.assign({id:k}, v[k])).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  }
+  function attachShared(){
+    listen('shop', snap=>{ state.shop=shopFrom(snap); });
+    listen('notice', snap=>{ state.notice=snap.val()||''; });
+  }
+  function attachTeacher(){
+    attachShared();
+    listen('students', snap=>{
+      const v=snap.val()||{};
+      state.students=Object.keys(v).map(k=>Object.assign({id:k, coins:0, avatar:AVATARS[0]}, v[k])).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+    });
+    listen('logs', snap=>{
+      const v=snap.val()||{}, out=[];
+      Object.keys(v).forEach(u=>Object.keys(v[u]||{}).forEach(k=>out.push(Object.assign({id:k, studentId:u}, v[u][k]))));
+      out.sort((a,b)=>b.ts-a.ts);
+      state.log=out;
+    });
+  }
+  function attachStudent(u){
+    attachShared();
+    listen('students/'+u, snap=>{
+      const v=snap.val();
+      state.students = v ? [Object.assign({id:u, coins:0, avatar:AVATARS[0]}, v)] : [];
+    });
+    listen('logs/'+u, snap=>{
+      const v=snap.val()||{};
+      state.log=Object.keys(v).map(k=>Object.assign({id:k, studentId:u}, v[k])).sort((a,b)=>b.ts-a.ts);
+    });
+  }
+  function logName(l){ const s=findStudent(l.studentId); return s ? s.name : '(삭제된 학생)'; }
+
+  // ---------- 로그인 상태 처리 ----------
+  async function resolveRole(user){
+    let tUid=null;
+    try{ tUid=(await db.ref('config/teacherUid').once('value')).val(); }catch(e){ console.error(e); }
+    const isTeacher = !!tUid && tUid===user.uid;
+    if(intent==='teacher' && !isTeacher){ intent=null; state.loginError='이 계정은 선생님 계정이 아니에요.'; await auth.signOut(); return; }
+    if(intent==='student' && isTeacher){ intent=null; state.studentLoginError='loginErr'; await auth.signOut(); return; }
+    intent=null;
+    detach();
+    if(isTeacher){
+      state.role='teacher'; state.uid=user.uid; state.teacherEmail=user.email||''; state.view='teacher';
+      attachTeacher();
+    }else{
+      let exists=false;
+      try{ exists=(await db.ref('students/'+user.uid).once('value')).exists(); }catch(e){}
+      if(!exists){ state.studentLoginError='loginErr'; state.view='studentLogin'; await auth.signOut(); return; }
+      state.role='student'; state.uid=user.uid; state.currentStudentId=user.uid; state.view='student'; state.studentTab='home';
+      attachStudent(user.uid);
+    }
+    state.authBusy=false;
+    render();
+  }
+  function setupAuthWatcher(){
+    auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(()=>{});
+    auth.onAuthStateChanged(async user=>{
+      if(suspendAuth) return;
+      if(!user){
+        detach();
+        state.role=null; state.uid=null; state.currentStudentId=null; state.students=[]; state.log=[]; state.shop=[]; state.notice='';
+        if(state.view==='teacher'||state.view==='student') state.view='home';
+        state.authBusy=false; render(); return;
+      }
+      await resolveRole(user);
+    });
+  }
+
+  let pendingRender=false;
+  function softRender(){ pendingRender=true; }
+  setInterval(()=>{
+    if(!pendingRender) return;
+    const a=document.activeElement;
+    if(a && (a.tagName==='INPUT'||a.tagName==='TEXTAREA')) return;
+    pendingRender=false; render();
+  }, 700);
+
+  function authErr(e){
+    const c=(e&&e.code)||'';
+    if(c.includes('network')) return T('netErr');
+    if(c.includes('too-many')) return '시도가 너무 많아요. 잠시 후 다시 해주세요.';
+    return null;
   }
 
   function render(){
-    if(!state.loaded){ root.innerHTML = `<div class="empty">불러오는 중...</div>`; return; }
+    pendingRender=false;
     let html='';
     switch(state.view){
       case 'home': html=viewHome(); break;
       case 'teacherLogin': html=viewTeacherLogin(); break;
-      case 'teacher': html=viewTeacher(); break;
+      case 'teacher': html=state.role==='teacher' ? viewTeacher() : viewHome(); break;
       case 'studentLogin': html=viewStudentLogin(); break;
-      case 'student': html=viewStudent(); break;
+      case 'student': html=state.role==='student' ? viewStudent() : viewStudentLogin(); break;
       default: html=viewHome();
     }
-    const banner = state.storageOk ? '' : `
+    const banner = firebaseOk ? '' : `
       <div style="background:#FDE4E4; border:2px solid var(--coral); color:var(--coral-dark); border-radius:14px; padding:12px 16px; margin-bottom:16px; font-size:13px; font-weight:700;">
-        ⚠️ 데이터베이스가 연결되지 않았어요. 이 파일 상단의 &lt;script&gt; 안 <code>__FIREBASE_CONFIG__</code> 값을
-        본인의 Firebase 프로젝트 설정으로 바꿔주세요. 지금은 학생·상품·코인 정보가 저장되지 않아요.
+        ⚠️ 데이터베이스에 연결하지 못했어요. 인터넷 연결을 확인하거나 Firebase 설정을 확인해주세요.
       </div>`;
     root.innerHTML = banner + html;
   }
@@ -466,15 +550,25 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
       <div class="footer-tag"><span>${esc(T('footerTag'))}</span></div>`;
   }
 
+
   function viewTeacherLogin(){
+    const setup = state.setupMode;
     return `
       <div class="topbar"><button class="btn-ghost btn-small btn-square" data-action="go-home">← 처음으로</button></div>
       <div class="card login-wrap">
-        <h2 style="margin-top:0;">👩‍🏫 선생님 로그인</h2>
-        <div class="field"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력" autofocus></div>
+        <h2 style="margin-top:0;">👩‍🏫 ${setup?'선생님 계정 만들기 (최초 1회)':'선생님 로그인'}</h2>
+        <div class="field"><label>이메일</label><input type="email" id="t-email" placeholder="선생님 이메일" value="${esc(state.teacherEmail)}" autocomplete="username"></div>
+        <div class="field"><label>비밀번호${setup?' (6자 이상)':''}</label><input type="password" id="t-pw" placeholder="비밀번호 입력" autocomplete="${setup?'new-password':'current-password'}"></div>
+        ${setup ? `<div class="field"><label>비밀번호 확인</label><input type="password" id="t-pw2" placeholder="비밀번호 다시 입력" autocomplete="new-password"></div>` : ''}
         ${state.loginError ? `<div class="err">${esc(state.loginError)}</div>` : ''}
-        <button class="btn-primary btn-block" data-action="teacher-login" style="margin-top:10px;">로그인</button>
-        <div class="hint" style="margin-top:10px;">기본 비밀번호는 <b>1234</b> 예요. 로그인 후 [설정] 탭에서 바꿀 수 있어요.</div>
+        ${state.busyMsg ? `<div class="hint" style="color:var(--mint-dark); font-weight:700;">${esc(state.busyMsg)}</div>` : ''}
+        <button class="btn-primary btn-block" data-action="${setup?'teacher-setup':'teacher-login'}" style="margin-top:10px;" ${state.authBusy?'disabled':''}>${setup?'계정 만들기':'로그인'}</button>
+        ${setup ? `<div class="hint" style="margin-top:10px;">⚠️ 이 화면은 <b>학생들에게 링크를 공유하기 전에</b> 선생님이 먼저 한 번만 사용해요. 이미 만들었다면 아래에서 로그인으로 돌아가세요.</div>
+          <button class="btn-ghost btn-small btn-square" data-action="toggle-setup" style="margin-top:8px;">← 로그인으로</button>` :
+          `<div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+            <button class="btn-ghost btn-small btn-square" data-action="teacher-forgot">비밀번호 찾기(이메일)</button>
+            <button class="btn-ghost btn-small btn-square" data-action="toggle-setup">처음 설정하기</button>
+          </div>`}
       </div>`;
   }
 
@@ -490,6 +584,7 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
         <div class="hint" style="margin-top:10px;">${esc(T('loginHint'))}</div>
       </div>`;
   }
+
 
   function viewTeacher(){
     const tabs=[['students','학생 관리'],['balances','코인 현황'],['shop','상점 관리'],['log','지급 기록'],['settings','설정']];
@@ -507,6 +602,7 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
       <div class="tabs">${tabs.map(([k,l])=>`<button class="tab ${state.teacherTab===k?'active':''}" data-action="teacher-tab" data-tab="${k}">${l}</button>`).join('')}</div>
       ${body}`;
   }
+
 
   function teacherStudentsTab(){
     const rows = state.students.map(s=>{
@@ -526,7 +622,7 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
           </div>
           <div class="mini-form">
             <span class="mlabel">비번재설정</span>
-            <input type="text" id="newpw-${s.id}" placeholder="새 비밀번호">
+            <input type="text" id="newpw-${s.id}" placeholder="새 비밀번호(${MIN_PW}자 이상)">
             <button class="btn-ghost btn-small btn-square" data-action="reset-student-pw" data-id="${s.id}">재설정</button>
           </div>
         </div>`;
@@ -535,11 +631,13 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
       <div class="card">
         <h3 style="margin-top:0;">학생 추가</h3>
         <div class="field" style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
-          <div style="flex:1; min-width:120px;"><label>이름</label><input type="text" id="new-student-name" placeholder="예: 김민준"></div>
-          <div style="flex:1; min-width:120px;"><label>초기 비밀번호</label><input type="text" id="new-student-pw" placeholder="예: 0304"></div>
-          <button class="btn-primary" data-action="add-student">추가</button>
+          <div style="flex:1; min-width:120px;"><label>이름(별명·번호도 가능)</label><input type="text" id="new-student-name" placeholder="예: 민준이 / 3번"></div>
+          <div style="flex:1; min-width:120px;"><label>초기 비밀번호 (${MIN_PW}자 이상)</label><input type="text" id="new-student-pw" placeholder="예: 0304"></div>
+          <button class="btn-primary" data-action="add-student" ${state.authBusy?'disabled':''}>추가</button>
         </div>
         ${state.addStudentError ? `<div class="err">${esc(state.addStudentError)}</div>` : ''}
+        ${state.busyMsg ? `<div class="hint" style="color:var(--mint-dark); font-weight:700;">${esc(state.busyMsg)}</div>` : ''}
+        <div class="hint" style="margin-top:8px;">💡 개인정보 보호를 위해 실명 대신 별명이나 번호를 쓰는 것을 추천해요. 비밀번호는 저장되지 않아 선생님도 볼 수 없어요(잊으면 [재설정]).</div>
       </div>
       <div class="card"><h3 style="margin-top:0;">학생 목록 (${state.students.length}명)</h3>${rows || `<div class="empty">아직 등록된 학생이 없어요. 위에서 추가해주세요.</div>`}</div>`;
   }
@@ -619,13 +717,17 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
     return `<div class="card"><h3 style="margin-top:0;">최근 지급/구매 기록</h3>${rows || `<div class="empty">아직 기록이 없어요.</div>`}</div>`;
   }
 
+
   function teacherSettingsTab(){
     return `
       <div class="card login-wrap">
         <h3 style="margin-top:0;">선생님 비밀번호 변경</h3>
-        <div class="field"><label>새 비밀번호</label><input type="password" id="new-pw" placeholder="새 비밀번호"></div>
-        <button class="btn-primary" data-action="change-password">비밀번호 저장</button>
-        <div class="hint" style="margin-top:14px;">⚠️ 이 비밀번호는 간단한 접근 제한용이에요. 학생들에게 알려주지 않도록 주의하세요.</div>
+        <div class="hint" style="margin-bottom:8px;">로그인 계정: <b>${esc(state.teacherEmail)}</b></div>
+        <div class="field"><label>현재 비밀번호</label><input type="password" id="cur-t-pw" placeholder="현재 비밀번호" autocomplete="current-password"></div>
+        <div class="field"><label>새 비밀번호 (6자 이상)</label><input type="password" id="new-t-pw" placeholder="새 비밀번호" autocomplete="new-password"></div>
+        ${state.pwChangeError ? `<div class="err">${esc(state.pwChangeError)}</div>` : ''}
+        ${state.pwChangeMsg ? `<div class="hint" style="color:var(--mint-dark); font-weight:700;">${esc(state.pwChangeMsg)}</div>` : ''}
+        <button class="btn-primary" data-action="change-teacher-password">비밀번호 저장</button>
       </div>
       <div class="card login-wrap">
         <h3 style="margin-top:0;">📣 공지사항</h3>
@@ -643,9 +745,8 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
     return {monthEarn, monthSpend};
   }
   function popularItems(){
-    const counts={};
-    state.log.forEach(l=>{ if(l.type!=='spend'||!l.itemName) return; const k=l.itemName; if(!counts[k]) counts[k]={name:l.itemName, emoji:l.itemEmoji||'🎁', count:0}; counts[k].count++; });
-    return Object.values(counts).sort((a,b)=>b.count-a.count).slice(0,5);
+    return state.shop.filter(i=>(i.sold||0)>0).map(i=>({name:i.name, emoji:i.emoji||'🎁', count:i.sold}))
+      .sort((a,b)=>b.count-a.count).slice(0,5);
   }
 
   function sideNav(s){
@@ -752,7 +853,7 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
           <button class="btn-coral btn-small" data-action="buy-item" data-id="${it.id}" ${disabled?'disabled':''}>${esc(btnText)}</button>
         </div>`;
     }).join('');
-    return `<div class="card"><h3 style="margin-top:0;">${esc(T('marketTitle'))}</h3>${state.shop.length ? `<div class="shop-grid">${cards}</div>` : `<div class="empty">${esc(T('noItems'))}</div>`}</div>`;
+    return `<div class="card"><h3 style="margin-top:0;">${esc(T('marketTitle'))}</h3>${state.buyMsg?`<div class="err">${esc(T(state.buyMsg))}</div>`:''}${state.shop.length ? `<div class="shop-grid">${cards}</div>` : `<div class="empty">${esc(T('noItems'))}</div>`}</div>`;
   }
 
   function tabSpending(s){
@@ -791,162 +892,251 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
       </div>`;
   }
 
+
+  async function changeCoins(studentId, delta){
+    await db.ref('students/'+studentId+'/coins').transaction(c=>(typeof c==='number'?c:0)+delta);
+  }
+
   async function handleAction(action, target){
     const id = target.getAttribute('data-id');
     if(action==='set-lang'){
       const lang = target.getAttribute('data-lang');
-      if(I18N[lang]){
-        state.lang = lang;
-        try{ localStorage.setItem(K_LANG, lang); }catch(e){}
-      }
+      if(I18N[lang]){ state.lang = lang; try{ localStorage.setItem(K_LANG, lang); }catch(e){} }
       render(); return;
     }
-    if(action==='go-teacher-login'){ state.view='teacherLogin'; state.loginError=''; render(); return; }
+    if(action==='go-teacher-login'){ state.view='teacherLogin'; state.loginError=''; state.busyMsg=''; state.setupMode=false; render(); return; }
     if(action==='go-student-login'){ state.view='studentLogin'; state.studentLoginError=''; render(); return; }
     if(action==='go-home'){ state.view='home'; render(); return; }
+    if(action==='toggle-setup'){ state.setupMode=!state.setupMode; state.loginError=''; state.busyMsg=''; render(); return; }
+    if(!firebaseOk && (action.includes('login')||action.includes('setup'))){ return; }
 
+    // ----- 선생님 로그인 / 최초 설정 / 비밀번호 찾기 -----
     if(action==='teacher-login'){
-      const pw=document.getElementById('pw-input').value;
-      await loadAll();
-      if(pw===(state.settings.password||DEFAULT_PASSWORD)){ state.loggedInTeacher=true; state.view='teacher'; state.loginError=''; }
-      else{ state.loginError='비밀번호가 틀렸어요. 다시 시도해주세요.'; }
+      const email=document.getElementById('t-email').value.trim(), pw=document.getElementById('t-pw').value;
+      state.teacherEmail=email;
+      if(!email||!pw){ state.loginError='이메일과 비밀번호를 입력해주세요.'; render(); return; }
+      state.authBusy=true; state.loginError=''; intent='teacher';
+      try{ await auth.signInWithEmailAndPassword(email, pw); }
+      catch(e){ intent=null; state.authBusy=false; state.loginError=authErr(e)||'이메일 또는 비밀번호가 올바르지 않아요.'; render(); }
+      return;
+    }
+    if(action==='teacher-setup'){
+      const email=document.getElementById('t-email').value.trim(), pw=document.getElementById('t-pw').value, pw2=document.getElementById('t-pw2').value;
+      state.teacherEmail=email;
+      if(!email||!pw){ state.loginError='이메일과 비밀번호를 입력해주세요.'; render(); return; }
+      if(pw.length<6){ state.loginError='비밀번호는 6자 이상이어야 해요.'; render(); return; }
+      if(pw!==pw2){ state.loginError='비밀번호 확인이 달라요.'; render(); return; }
+      state.authBusy=true; state.loginError=''; suspendAuth=true;
+      let user=null;
+      try{
+        const cred=await auth.createUserWithEmailAndPassword(email, pw); user=cred.user;
+        await db.ref('config/teacherUid').set(user.uid);   // 아직 아무도 설정하지 않았을 때만 성공해요
+      }catch(e){
+        state.loginError = (e && e.code==='auth/email-already-in-use') ? '이미 만들어진 계정이에요. 로그인으로 돌아가세요.'
+          : (e && /PERMISSION_DENIED/i.test(e.message||'')) ? '이미 선생님 계정이 설정되어 있어요. (다른 사람이 먼저 설정했다면 Firebase 콘솔에서 확인이 필요해요)'
+          : (authErr(e) || (e&&e.code==='auth/weak-password' ? '비밀번호가 너무 약해요.' : '계정을 만들지 못했어요.'));
+        try{ if(user) await user.delete(); }catch(_){ try{ await auth.signOut(); }catch(__){} }
+        suspendAuth=false; state.authBusy=false; render(); return;
+      }
+      suspendAuth=false; await resolveRole(user); return;
+    }
+    if(action==='teacher-forgot'){
+      const email=document.getElementById('t-email').value.trim();
+      if(!email){ state.loginError='위에 이메일을 먼저 입력해주세요.'; render(); return; }
+      try{ await auth.sendPasswordResetEmail(email); state.loginError=''; state.busyMsg='비밀번호 재설정 메일을 보냈어요. 메일함을 확인해주세요.'; }
+      catch(e){ state.busyMsg=''; state.loginError=authErr(e)||'메일을 보내지 못했어요. 이메일을 확인해주세요.'; }
       render(); return;
     }
-    if(action==='teacher-logout'){ state.loggedInTeacher=false; state.view='home'; render(); return; }
-    if(action==='teacher-tab'){ state.teacherTab=target.getAttribute('data-tab'); state.confirmDelete=null; state.editingShopId=null; state.savingMsg=''; state.addStudentError=''; state.confirmCancel=null; render(); return; }
+    if(action==='teacher-logout'){ state.teacherTab='students'; await auth.signOut(); return; }
+    if(action==='teacher-tab'){ state.teacherTab=target.getAttribute('data-tab'); state.confirmDelete=null; state.editingShopId=null; state.savingMsg=''; state.addStudentError=''; state.confirmCancel=null; state.pwChangeError=''; state.pwChangeMsg=''; state.busyMsg=''; render(); return; }
 
-    if(action==='add-student'){
-      const name=document.getElementById('new-student-name').value.trim();
-      const pw=document.getElementById('new-student-pw').value.trim();
-      if(!name && !pw){ state.addStudentError='이름과 초기 비밀번호를 모두 입력해주세요.'; render(); return; }
-      if(!name){ state.addStudentError='이름을 입력해주세요.'; render(); return; }
-      if(!pw){ state.addStudentError='초기 비밀번호를 입력해주세요.'; render(); return; }
-      await loadAll();
-      if(state.students.some(s => s.name === name)){
-        state.addStudentError='이미 같은 이름의 학생이 있어요. 이름을 다르게 구분해주세요 (예: 홍길동1).';
+    // ----- 선생님 기능 (서버 규칙이 선생님 계정만 허용해요) -----
+    if(state.role==='teacher'){
+      if(action==='add-student'){
+        const name=document.getElementById('new-student-name').value.trim();
+        const pw=document.getElementById('new-student-pw').value.trim();
+        if(!name && !pw){ state.addStudentError='이름과 초기 비밀번호를 모두 입력해주세요.'; render(); return; }
+        if(!name){ state.addStudentError='이름을 입력해주세요.'; render(); return; }
+        if(name.length>20){ state.addStudentError='이름은 20자 이하로 해주세요.'; render(); return; }
+        if(!pw){ state.addStudentError='초기 비밀번호를 입력해주세요.'; render(); return; }
+        if(pw.length<MIN_PW){ state.addStudentError=`비밀번호는 ${MIN_PW}자 이상이어야 해요.`; render(); return; }
+        state.authBusy=true; state.addStudentError=''; state.busyMsg='추가하는 중...'; render();
+        try{
+          const h=await nameHash(name);
+          if((await db.ref('loginIndex/'+h).once('value')).exists()){
+            state.addStudentError='이미 같은 이름의 학생이 있어요. 이름을 다르게 구분해주세요 (예: 홍길동1).'; state.busyMsg=''; state.authBusy=false; render(); return;
+          }
+          const ver=Math.floor(Date.now()/1000), a2=secondaryAuth();
+          const cred=await a2.createUserWithEmailAndPassword(stuEmail(h,ver), padPw(pw));
+          const nu=cred.user.uid; await a2.signOut();
+          await db.ref().update({
+            ['students/'+nu]:{name, coins:0, avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)], ver},
+            ['loginIndex/'+h]:ver
+          });
+          state.busyMsg='✅ 추가되었어요.';
+        }catch(e){ console.error(e); state.addStudentError=authErr(e)||'학생을 추가하지 못했어요. 다시 시도해주세요.'; state.busyMsg=''; }
+        state.authBusy=false; render(); return;
+      }
+      if(action==='delete-student'){
+        if(state.confirmDelete && state.confirmDelete.type==='student' && state.confirmDelete.id===id){
+          const s=findStudent(id); state.confirmDelete=null;
+          if(s){ try{
+            const h=await nameHash(s.name);
+            await db.ref().update({['students/'+id]:null, ['logs/'+id]:null, ['loginIndex/'+h]:null});
+          }catch(e){ console.error(e); } }
+        }else{ state.confirmDelete={type:'student', id}; }
         render(); return;
       }
-      state.students.push({id:uid(), name, password:pw, coins:0, avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)], savings:0, savingsGoal:{name:'',target:0}});
-      await saveJSON(K_STUDENTS, state.students);
-      state.addStudentError='';
-      render(); return;
-    }
-    if(action==='delete-student'){
-      if(state.confirmDelete && state.confirmDelete.type==='student' && state.confirmDelete.id===id){
-        await loadAll(); state.students=state.students.filter(s=>s.id!==id); await saveJSON(K_STUDENTS, state.students); state.confirmDelete=null;
-      }else{ state.confirmDelete={type:'student', id}; }
-      render(); return;
-    }
-    if(action==='grant-coin'){
-      const type = target.getAttribute('data-type') === 'deduct' ? 'deduct' : 'earn';
-      const raw = parseInt(document.getElementById('amt-'+id).value,10);
-      if(!raw || raw<=0) return;
-      const amt = Math.abs(raw);
-      const reason=document.getElementById('reason-'+id).value.trim();
-      await loadAll(); const s=findStudent(id); if(!s) return;
-      s.coins = (s.coins||0) + (type==='deduct' ? -amt : amt);
-      await saveJSON(K_STUDENTS, state.students);
-      await addLog({studentId:s.id, studentName:s.name, type, amount: amt, reason: reason || (type==='deduct'?'선생님 차감':'선생님 지급'), cancelled:false});
-      render(); return;
-    }
-    if(action==='cancel-log'){
-      if(state.confirmCancel === id){
-        await loadAll();
-        const entry = state.log.find(l=>l.id===id);
-        if(entry && !entry.cancelled && (entry.type==='earn'||entry.type==='deduct')){
-          const s = findStudent(entry.studentId);
-          if(s){
-            s.coins = (s.coins||0) + (entry.type==='earn' ? -entry.amount : entry.amount);
-            await saveJSON(K_STUDENTS, state.students);
-          }
-          entry.cancelled = true;
-          entry.cancelledAt = Date.now();
-          await saveJSON(K_LOG, state.log);
-        }
-        state.confirmCancel = null;
-      }else{
-        state.confirmCancel = id;
+      if(action==='grant-coin'){
+        const type = target.getAttribute('data-type') === 'deduct' ? 'deduct' : 'earn';
+        const raw = parseInt(document.getElementById('amt-'+id).value,10);
+        if(!raw || raw<=0) return;
+        const amt = Math.min(Math.abs(raw), 100000);
+        const reason=document.getElementById('reason-'+id).value.trim().slice(0,60);
+        const s=findStudent(id); if(!s) return;
+        try{
+          await changeCoins(id, type==='deduct' ? -amt : amt);
+          await db.ref('logs/'+id).push({type, amount:amt, ts:Date.now(), reason: reason || (type==='deduct'?'선생님 차감':'선생님 지급')});
+        }catch(e){ console.error(e); }
+        render(); return;
       }
-      render(); return;
+      if(action==='cancel-log'){
+        if(state.confirmCancel === id){
+          const entry = state.log.find(l=>l.id===id);
+          state.confirmCancel = null;
+          if(entry && !entry.cancelled && (entry.type==='earn'||entry.type==='deduct')){
+            try{
+              await changeCoins(entry.studentId, entry.type==='earn' ? -entry.amount : entry.amount);
+              await db.ref('logs/'+entry.studentId+'/'+id).update({cancelled:true, cancelledAt:Date.now()});
+            }catch(e){ console.error(e); }
+          }
+        }else{ state.confirmCancel = id; }
+        render(); return;
+      }
+      if(action==='reset-student-pw'){
+        const pw=document.getElementById('newpw-'+id).value.trim();
+        if(pw.length<MIN_PW){ state.savingMsg=''; state.busyMsg=`새 비밀번호는 ${MIN_PW}자 이상이어야 해요.`; render(); return; }
+        const s=findStudent(id); if(!s) return;
+        state.busyMsg='재설정하는 중...'; render();
+        try{
+          // 서버 없이는 다른 사람의 비밀번호를 바로 바꿀 수 없어서, 새 계정을 만들고 데이터를 옮겨요.
+          const h=await nameHash(s.name), ver=Math.floor(Date.now()/1000), a2=secondaryAuth();
+          const oldLogs=(await db.ref('logs/'+id).once('value')).val();
+          const cred=await a2.createUserWithEmailAndPassword(stuEmail(h,ver), padPw(pw));
+          const nu=cred.user.uid; await a2.signOut();
+          const upd={
+            ['students/'+nu]:{name:s.name, coins:s.coins||0, avatar:s.avatar||AVATARS[0], ver},
+            ['loginIndex/'+h]:ver,
+            ['students/'+id]:null, ['logs/'+id]:null
+          };
+          if(oldLogs) upd['logs/'+nu]=oldLogs;
+          await db.ref().update(upd);
+          state.busyMsg=`✅ ${s.name} 학생의 비밀번호를 재설정했어요.`;
+        }catch(e){ console.error(e); state.busyMsg='재설정하지 못했어요. 다시 시도해주세요.'; }
+        render(); return;
+      }
+      if(action==='save-shop'){
+        const emoji=document.getElementById('shop-emoji').value.trim().slice(0,8)||'🎁';
+        const name=document.getElementById('shop-name').value.trim().slice(0,40);
+        const price=parseInt(document.getElementById('shop-price').value,10);
+        const stockRaw=document.getElementById('shop-stock').value;
+        const stock=stockRaw===''?null:Math.max(0,parseInt(stockRaw,10)||0);
+        if(!name||!price||price<=0) return;
+        try{
+          if(state.editingShopId){
+            await db.ref('shop/'+state.editingShopId).update({emoji,name,price,stock}); state.editingShopId=null;
+          }else{
+            const o={emoji,name,price,sold:0,createdAt:Date.now()}; if(stock!==null) o.stock=stock;
+            await db.ref('shop').push(o);
+          }
+        }catch(e){ console.error(e); }
+        render(); return;
+      }
+      if(action==='edit-shop'){ state.editingShopId=id; render(); return; }
+      if(action==='cancel-edit-shop'){ state.editingShopId=null; render(); return; }
+      if(action==='delete-shop'){
+        if(state.confirmDelete && state.confirmDelete.type==='shop' && state.confirmDelete.id===id){
+          state.confirmDelete=null; try{ await db.ref('shop/'+id).remove(); }catch(e){ console.error(e); }
+        }else{ state.confirmDelete={type:'shop', id}; }
+        render(); return;
+      }
+      if(action==='change-teacher-password'){
+        const cur=document.getElementById('cur-t-pw').value, next=document.getElementById('new-t-pw').value;
+        state.pwChangeMsg=''; state.pwChangeError='';
+        if(!cur||!next){ state.pwChangeError='현재 비밀번호와 새 비밀번호를 입력해주세요.'; render(); return; }
+        if(next.length<6){ state.pwChangeError='새 비밀번호는 6자 이상이어야 해요.'; render(); return; }
+        const u=auth.currentUser;
+        try{
+          await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email, cur));
+          await u.updatePassword(next); state.pwChangeMsg='비밀번호가 변경되었어요.';
+        }catch(e){ state.pwChangeError=authErr(e)||'현재 비밀번호가 올바르지 않아요.'; }
+        render(); return;
+      }
+      if(action==='save-notice'){
+        const text=document.getElementById('notice-text').value.slice(0,1000);
+        try{ await db.ref('notice').set(text); state.notice=text; state.savingMsg='공지사항이 저장되었어요.'; }
+        catch(e){ state.savingMsg='저장하지 못했어요.'; }
+        render(); return;
+      }
     }
-    if(action==='reset-student-pw'){
-      const pw=document.getElementById('newpw-'+id).value.trim();
-      if(!pw) return;
-      await loadAll(); const s=findStudent(id); if(!s) return;
-      s.password=pw; await saveJSON(K_STUDENTS, state.students);
-      state.savingMsg='비밀번호가 재설정되었어요.'; render(); return;
-    }
-    if(action==='save-shop'){
-      const emoji=document.getElementById('shop-emoji').value.trim()||'🎁';
-      const name=document.getElementById('shop-name').value.trim();
-      const price=parseInt(document.getElementById('shop-price').value,10);
-      const stockRaw=document.getElementById('shop-stock').value;
-      const stock=stockRaw===''?null:parseInt(stockRaw,10);
-      if(!name||!price||price<=0) return;
-      await loadAll();
-      if(state.editingShopId){ const it=findShop(state.editingShopId); if(it){it.emoji=emoji;it.name=name;it.price=price;it.stock=stock;} state.editingShopId=null; }
-      else{ state.shop.push({id:uid(), emoji, name, price, stock}); }
-      await saveJSON(K_SHOP, state.shop);
-      render(); return;
-    }
-    if(action==='edit-shop'){ state.editingShopId=id; render(); return; }
-    if(action==='cancel-edit-shop'){ state.editingShopId=null; render(); return; }
-    if(action==='delete-shop'){
-      if(state.confirmDelete && state.confirmDelete.type==='shop' && state.confirmDelete.id===id){
-        await loadAll(); state.shop=state.shop.filter(s=>s.id!==id); await saveJSON(K_SHOP, state.shop); state.confirmDelete=null;
-      }else{ state.confirmDelete={type:'shop', id}; }
-      render(); return;
-    }
-    if(action==='change-password'){
-      const pw=document.getElementById('new-pw').value.trim(); if(!pw) return;
-      state.settings.password=pw; await saveJSON(K_SETTINGS, state.settings);
-      state.savingMsg='비밀번호가 저장되었어요.'; render(); return;
-    }
-    if(action==='save-notice'){
-      const text=document.getElementById('notice-text').value;
-      state.notice=text; await saveText(K_NOTICE, text);
-      state.savingMsg='공지사항이 저장되었어요.'; render(); return;
-    }
+
+    // ----- 학생 -----
     if(action==='student-login'){
       const name=document.getElementById('stu-name').value.trim();
       const pw=document.getElementById('stu-pw').value;
       if(!name||!pw) return;
-      await loadAll();
-      const s=state.students.find(st=>st.name===name);
-      if(!s || s.password!==pw){ state.studentLoginError='loginErr'; render(); return; }
-      state.currentStudentId=s.id; state.view='student'; state.studentTab='home'; state.studentLoginError='';
-      render(); return;
+      state.authBusy=true; state.studentLoginError='';
+      try{
+        const h=await nameHash(name);
+        const ver=(await db.ref('loginIndex/'+h).once('value')).val();
+        if(ver===null){ state.studentLoginError='loginErr'; state.authBusy=false; render(); return; }
+        intent='student';
+        await auth.signInWithEmailAndPassword(stuEmail(h,ver), padPw(pw));
+      }catch(e){ intent=null; state.authBusy=false; state.studentLoginError = (e&&e.code&&e.code.includes('network')) ? 'netErr' : 'loginErr'; render(); }
+      return;
     }
-    if(action==='student-logout'){ state.currentStudentId=null; state.view='studentLogin'; render(); return; }
-    if(action==='student-tab'){ state.studentTab=target.getAttribute('data-tab'); state.pwChangeError=''; state.pwChangeMsg=''; render(); return; }
-    if(action==='change-avatar'){
-      const s=findStudent(state.currentStudentId); if(!s) return;
-      const idx=AVATARS.indexOf(s.avatar); s.avatar=AVATARS[(idx+1+AVATARS.length)%AVATARS.length];
-      await saveJSON(K_STUDENTS, state.students); render(); return;
-    }
-    if(action==='change-own-password'){
-      const cur = document.getElementById('cur-pw').value;
-      const next = document.getElementById('new-own-pw').value.trim();
-      const confirmPw = document.getElementById('confirm-own-pw').value.trim();
-      await loadAll();
-      const s = findStudent(state.currentStudentId);
-      if(!s) return;
-      if(cur !== s.password){ state.pwChangeError='errCurPw'; state.pwChangeMsg=''; render(); return; }
-      if(!next){ state.pwChangeError='errNewPwEmpty'; state.pwChangeMsg=''; render(); return; }
-      if(next !== confirmPw){ state.pwChangeError='errPwMismatch'; state.pwChangeMsg=''; render(); return; }
-      s.password = next;
-      await saveJSON(K_STUDENTS, state.students);
-      state.pwChangeError=''; state.pwChangeMsg='pwChanged';
-      render(); return;
-    }
-    if(action==='buy-item'){
-      await loadAll(); const s=findStudent(state.currentStudentId); const it=findShop(id); if(!s||!it) return;
-      const soldOut = !(it.stock===null||it.stock===undefined) && Number(it.stock)<=0;
-      if(soldOut || s.coins<it.price){ render(); return; }
-      s.coins-=it.price; if(!(it.stock===null||it.stock===undefined)) it.stock=Number(it.stock)-1;
-      await saveJSON(K_STUDENTS, state.students); await saveJSON(K_SHOP, state.shop);
-      await addLog({studentId:s.id, studentName:s.name, type:'spend', amount:it.price, reason:`${it.emoji||'🎁'} ${it.name} 구매`, itemId:it.id, itemName:it.name, itemEmoji:it.emoji});
-      render(); return;
+    if(action==='student-logout'){ state.studentTab='home'; await auth.signOut(); state.view='studentLogin'; render(); return; }
+    if(action==='student-tab'){ state.studentTab=target.getAttribute('data-tab'); state.pwChangeError=''; state.pwChangeMsg=''; state.buyMsg=''; render(); return; }
+
+    if(state.role==='student'){
+      if(action==='change-avatar'){
+        const s=findStudent(state.currentStudentId); if(!s) return;
+        const idx=AVATARS.indexOf(s.avatar); const next=AVATARS[(idx+1+AVATARS.length)%AVATARS.length];
+        try{ await db.ref('students/'+s.id+'/avatar').set(next); }catch(e){ console.error(e); }
+        return;
+      }
+      if(action==='change-own-password'){
+        const cur = document.getElementById('cur-pw').value;
+        const next = document.getElementById('new-own-pw').value.trim();
+        const confirmPw = document.getElementById('confirm-own-pw').value.trim();
+        state.pwChangeError=''; state.pwChangeMsg='';
+        if(!next){ state.pwChangeError='errNewPwEmpty'; render(); return; }
+        if(next.length<MIN_PW){ state.pwChangeError='errPwShort'; render(); return; }
+        if(next !== confirmPw){ state.pwChangeError='errPwMismatch'; render(); return; }
+        const u=auth.currentUser;
+        try{
+          await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email, padPw(cur)));
+          await u.updatePassword(padPw(next));
+          state.pwChangeMsg='pwChanged';
+        }catch(e){ state.pwChangeError = (e&&e.code&&e.code.includes('network')) ? 'netErr' : 'errCurPw'; }
+        render(); return;
+      }
+      if(action==='buy-item'){
+        const s=findStudent(state.currentStudentId), it=findShop(id); if(!s||!it) return;
+        const hasStock = it.stock!==null && it.stock!==undefined;
+        if((hasStock && Number(it.stock)<=0) || s.coins<it.price){ render(); return; }
+        const ts=Date.now(), logKey=db.ref('logs/'+s.id).push().key;
+        const upd={};
+        upd['students/'+s.id+'/coins']=s.coins-it.price;
+        upd['students/'+s.id+'/lastPurchase']={itemId:it.id, ts};
+        upd['shop/'+it.id+'/sold']=(it.sold||0)+1;
+        if(hasStock) upd['shop/'+it.id+'/stock']=Number(it.stock)-1;
+        upd['logs/'+s.id+'/'+logKey]={type:'spend', amount:it.price, ts, reason:`${it.emoji||'🎁'} ${it.name} 구매`, itemId:it.id, itemName:it.name, itemEmoji:it.emoji||'🎁'};
+        state.buyMsg='';
+        try{ await db.ref().update(upd); }
+        catch(e){ console.error('구매 실패', e && e.code); state.buyMsg='buyFail'; }
+        render(); return;
+      }
     }
   }
 
@@ -954,21 +1144,19 @@ input:focus,textarea:focus{outline:none; border-color:var(--mint);}
     const target=e.target.closest('[data-action]'); if(!target) return;
     handleAction(target.getAttribute('data-action'), target);
   });
+  // 엔터키로 로그인
+  root.addEventListener('keydown', (e)=>{
+    if(e.key!=='Enter') return;
+    const id=e.target && e.target.id;
+    const map={'t-pw':'teacher-login','t-pw2':'teacher-setup','stu-pw':'student-login'};
+    if(id==='t-pw' && state.setupMode) return;
+    const act=map[id]; if(act){ const b=root.querySelector(`[data-action="${act}"]`); if(b) b.click(); }
+  });
 
-  async function pollRefresh(){
-    const active=document.activeElement;
-    const typing = active && (active.tagName==='INPUT'||active.tagName==='TEXTAREA');
-    if(typing) return;
-    await loadAll(); render();
-  }
-
-  (async function init(){
-    state.storageOk = firebaseOk;
-    try{
-      const savedLang = localStorage.getItem(K_LANG);
-      if(savedLang && I18N[savedLang]) state.lang = savedLang;
-    }catch(e){}
-    await loadAll(); render(); setInterval(pollRefresh, 6000);
+  (function init(){
+    try{ const savedLang = localStorage.getItem(K_LANG); if(savedLang && I18N[savedLang]) state.lang = savedLang; }catch(e){}
+    render();
+    if(firebaseOk) setupAuthWatcher();
   })();
 })();
 </script>
